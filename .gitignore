@@ -1,0 +1,40 @@
+# --- Maven ---
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# --- IntelliJ IDEA ---
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+
+# --- Mac OS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# --- Logs ---
+logs/
+*.log
+*.gz
+
+# --- Spring Boot ---
+HELP.md
+.mvn/wrapper/maven-wrapper.jar
+
+# --- Docker & Local Environment ---
+postgres_data/
+redis_data/
+.env
+
+# --- Other IDEs (Netbeans, Eclipse, VS Code) ---
+.classpath
+.project
+.settings/
+.vscode/
+bin/
+build/
