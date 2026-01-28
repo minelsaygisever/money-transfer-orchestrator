@@ -1,0 +1,23 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: account-service
+
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/banking_core
+    username: admin
+    password: password
+    pool:
+      initial-size: 5
+      max-size: 10
+
+  sql:
+    init:
+      mode: always
+
+logging:
+  level:
+    org.springframework.r2dbc: DEBUG
+    io.r2dbc.postgresql: INFO
