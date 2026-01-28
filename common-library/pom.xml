@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.minelsaygisever</groupId>
         <artifactId>money-transfer-orchestrator</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>0.0.1</version>
     </parent>
 
     <artifactId>common-library</artifactId>
