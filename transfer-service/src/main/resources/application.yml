@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: transfer-service
+
+  r2dbc:
+    url: r2dbc:postgresql://postgres:5432/banking_core
+    username: admin
+    password: password
+    pool:
+      initial-size: 5
+      max-size: 10
+  
+  sql:
+    init:
+      mode: always
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+
+transfer:
+  lock-timeout: 5m
