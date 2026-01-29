@@ -1,6 +1,8 @@
 package com.minelsaygisever.account.exception;
 
 import com.minelsaygisever.account.dto.ErrorResponse;
+import com.minelsaygisever.common.exception.CurrencyMismatchException;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -58,6 +60,26 @@ public class GlobalExceptionHandler {
         return Mono.just(createErrorResponse(
                 HttpStatus.UNPROCESSABLE_ENTITY,
                 "DAILY_LIMIT_EXCEEDED",
+                ex.getMessage(),
+                exchange
+        ));
+    }
+
+    @ExceptionHandler(CurrencyMismatchException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleCurrencyMismatch(CurrencyMismatchException ex, ServerWebExchange exchange) {
+        return Mono.just(createErrorResponse(
+                HttpStatus.CONFLICT,
+                "CURRENCY_MISMATCH",
+                ex.getMessage(),
+                exchange
+        ));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleValidationException(ConstraintViolationException ex, ServerWebExchange exchange) {
+        return Mono.just(createErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                "VALIDATION_ERROR",
                 ex.getMessage(),
                 exchange
         ));

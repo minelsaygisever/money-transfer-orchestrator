@@ -14,11 +14,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 
+@Validated
 @Tag(name = "Account Management", description = "APIs for creating accounts, adding money, and withdrawals.")
 @RequestMapping("/api/v1/accounts")
 public interface AccountApi {
