@@ -12,12 +12,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import reactor.core.publisher.Mono;
 
+@Validated
 @Tag(name = "Transfer Management", description = "APIs for managing money transfers with idempotency support")
 @RequestMapping("/api/v1/transfers")
 public interface TransferApi {
