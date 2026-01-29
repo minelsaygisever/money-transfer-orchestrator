@@ -1,5 +1,6 @@
 package com.minelsaygisever.transfer.domain;
 
+import com.minelsaygisever.transfer.domain.enums.TransferState;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

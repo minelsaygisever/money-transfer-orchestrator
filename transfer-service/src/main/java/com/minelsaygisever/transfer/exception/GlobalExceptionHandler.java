@@ -66,6 +66,18 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(EventSerializationException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleSerializationError(EventSerializationException ex, ServerWebExchange exchange) {
+        log.error("CRITICAL: Outbox serialization failed! Transaction rolled back.", ex);
+
+        return Mono.just(createErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "SYSTEM_ERROR",
+                "A system error occurred during transfer initialization. Please try again.",
+                exchange
+        ));
+    }
+
     @ExceptionHandler(Exception.class)
     public Mono<ResponseEntity<ErrorResponse>> handleGeneralException(Exception ex, ServerWebExchange exchange) {
         log.error("Unexpected error occurred: ", ex);

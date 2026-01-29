@@ -1,4 +1,4 @@
-package com.minelsaygisever.transfer.domain;
+package com.minelsaygisever.transfer.domain.enums;
 
 public enum TransferState {
     STARTED,

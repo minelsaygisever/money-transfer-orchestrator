@@ -1,7 +1,13 @@
 package com.minelsaygisever.transfer.integration;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.minelsaygisever.transfer.domain.enums.AggregateType;
+import com.minelsaygisever.transfer.domain.enums.EventType;
+import com.minelsaygisever.transfer.domain.enums.OutboxStatus;
 import com.minelsaygisever.transfer.dto.TransferApiRequest;
 import com.minelsaygisever.transfer.dto.TransferResponse;
+import com.minelsaygisever.transfer.dto.event.TransferInitiatedEvent;
+import com.minelsaygisever.transfer.repository.OutboxRepository;
 import com.minelsaygisever.transfer.repository.TransferRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -48,19 +55,32 @@ class TransferIntegrationTest {
     @Autowired
     private TransferRepository transferRepository;
 
+    @Autowired
+    private OutboxRepository outboxRepository;
+
+    @Autowired
+    private ReactiveRedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @BeforeEach
     void setup() {
         transferRepository.deleteAll().block();
+        outboxRepository.deleteAll().block();
+        redisTemplate.execute(conn -> conn.serverCommands().flushAll()).blockLast();
     }
 
     @Test
-    @DisplayName("Happy Path: Should initiate transfer successfully")
-    void shouldInitiateTransfer() {
+    @DisplayName("E2E: Should initiate transfer AND save Outbox event successfully")
+    void shouldInitiateTransfer_AndCreateOutboxRecord() {
+        // 1. Arrange
         String idempotencyKey = UUID.randomUUID().toString();
         TransferApiRequest request = new TransferApiRequest(
                 "1", "2", new BigDecimal("100.00"), "TRY"
         );
 
+        // 2. Act
         webTestClient.post()
                 .uri("/api/v1/transfers")
                 .header("x-idempotency-key", idempotencyKey)
@@ -72,6 +92,35 @@ class TransferIntegrationTest {
                     assertThat(response.state().name()).isEqualTo("STARTED");
                     assertThat(response.transactionId()).isNotNull();
                 });
+
+        // 3. Assert (Database & Outbox Control)
+        StepVerifier.create(transferRepository.findAll())
+                .expectNextMatches(transfer ->
+                        transfer.getIdempotencyKey().equals(idempotencyKey) &&
+                                transfer.getAmount().compareTo(new BigDecimal("100.00")) == 0
+                )
+                .verifyComplete();
+
+        StepVerifier.create(outboxRepository.findAll())
+                .expectNextMatches(outbox -> {
+                    assertThat(outbox.getAggregateType()).isEqualTo(AggregateType.TRANSFER);
+                    assertThat(outbox.getType()).isEqualTo(EventType.TRANSFER_INITIATED);
+                    assertThat(outbox.getStatus()).isEqualTo(OutboxStatus.PENDING);
+
+                    // Payload (JSON)
+                    try {
+                        TransferInitiatedEvent event = objectMapper.readValue(
+                                outbox.getPayload(),
+                                TransferInitiatedEvent.class
+                        );
+                        assertThat(event.amount()).isEqualByComparingTo(new BigDecimal("100.00"));
+                        assertThat(event.currency()).isEqualTo("TRY");
+                        return true;
+                    } catch (Exception e) {
+                        throw new RuntimeException("Outbox JSON parsing failed", e);
+                    }
+                })
+                .verifyComplete();
     }
 
     @Test
@@ -113,10 +162,14 @@ class TransferIntegrationTest {
         StepVerifier.create(transferRepository.count())
                 .expectNext(1L)
                 .verifyComplete();
+
+        StepVerifier.create(outboxRepository.count())
+                .expectNext(1L)
+                .verifyComplete();
     }
 
     @Test
-    @DisplayName("Race Condition: 5 Concurrent requests with SAME key -> Only 1 Success, others waiting or returned same")
+    @DisplayName("Race Condition: 5 Concurrent requests with SAME key -> Only 1 Success")
     void shouldHandleConcurrentRequests_WithSameIdempotencyKey() {
         String idempotencyKey = "RACE-CONDITION-KEY-" + UUID.randomUUID();
         TransferApiRequest request = new TransferApiRequest(
@@ -164,6 +217,10 @@ class TransferIntegrationTest {
         // there should be ONLY 1 record in the database.
         StepVerifier.create(transferRepository.findAll())
                 .expectNextCount(1)
+                .verifyComplete();
+
+        StepVerifier.create(outboxRepository.count())
+                .expectNext(1L)
                 .verifyComplete();
     }
 }
