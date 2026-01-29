@@ -2,6 +2,7 @@ package com.minelsaygisever.account.controller;
 
 import com.minelsaygisever.account.controller.api.AccountApi;
 import com.minelsaygisever.account.dto.AccountDto;
+import com.minelsaygisever.account.dto.CreateAccountRequest;
 import com.minelsaygisever.account.service.AccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,8 +18,8 @@ public class AccountController implements AccountApi {
     private final AccountService accountService;
 
     @Override
-    public Mono<ResponseEntity<AccountDto>> create(String customerId, BigDecimal initialAmount, String currency) {
-        return accountService.create(customerId, initialAmount, currency)
+    public Mono<ResponseEntity<AccountDto>> create(CreateAccountRequest request) {
+        return accountService.create(request)
                 .map(ResponseEntity::ok);
     }
 

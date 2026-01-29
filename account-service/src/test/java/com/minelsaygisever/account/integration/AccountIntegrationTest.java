@@ -1,11 +1,13 @@
 package com.minelsaygisever.account.integration;
 
 import com.minelsaygisever.account.dto.AccountDto;
+import com.minelsaygisever.account.dto.CreateAccountRequest;
 import com.minelsaygisever.account.repository.AccountRepository;
 import com.minelsaygisever.account.service.AccountService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -38,7 +40,12 @@ public class AccountIntegrationTest {
 
     @Test
     void shouldCreateAccount_AndSaveToDatabase_WithNormalizedCurrency() {
-        var createMono = accountService.create("12345", new BigDecimal("100.00"), "try");
+        CreateAccountRequest request = new CreateAccountRequest(
+                "12345",
+                new BigDecimal("100.00"),
+                "try"
+        );
+        var createMono = accountService.create(request);
 
         StepVerifier.create(createMono)
                 .expectNextMatches(accountDto ->
@@ -59,7 +66,9 @@ public class AccountIntegrationTest {
 
     @Test
     void shouldWithdrawMoney_WhenBalanceIsSufficient() {
-        AccountDto createdAccount = accountService.create("999", new BigDecimal("500.00"), "USD").block();
+        CreateAccountRequest request = new CreateAccountRequest("999", new BigDecimal("500.00"), "USD");
+
+        AccountDto createdAccount = accountService.create(request).block();
         Objects.requireNonNull(createdAccount, "The account could not be created during setup; the returned value is null!");
         String accountId = createdAccount.id();
 
@@ -77,7 +86,9 @@ public class AccountIntegrationTest {
 
     @Test
     void shouldHandleConcurrentUpdates_WhenOptimisticLockingOccurs() {
-        AccountDto account = accountService.create("CONCURRENT_USER", new BigDecimal("1000.00"), "TRY").block();
+        CreateAccountRequest request = new CreateAccountRequest("CONCURRENT_USER", new BigDecimal("1000.00"), "TRY");
+
+        AccountDto account = accountService.create(request).block();
         Objects.requireNonNull(account, "The account could not be created during setup; the returned value is null!");
         String accountId = account.id();
 

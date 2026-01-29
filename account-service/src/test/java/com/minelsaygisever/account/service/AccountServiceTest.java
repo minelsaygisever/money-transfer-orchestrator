@@ -1,7 +1,9 @@
 package com.minelsaygisever.account.service;
 
+import com.minelsaygisever.account.config.AccountProperties;
 import com.minelsaygisever.account.domain.Account;
 import com.minelsaygisever.account.domain.AccountStatus;
+import com.minelsaygisever.account.dto.CreateAccountRequest;
 import com.minelsaygisever.account.exception.AccountNotActiveException;
 import com.minelsaygisever.account.exception.AccountNotFoundException;
 import com.minelsaygisever.account.exception.DailyLimitExceededException;
@@ -29,6 +31,9 @@ class AccountServiceTest {
     @Mock
     private AccountRepository accountRepository;
 
+    @Mock
+    private AccountProperties accountProperties;
+
     @InjectMocks
     private AccountService accountService;
 
@@ -37,6 +42,11 @@ class AccountServiceTest {
     @Test
     @DisplayName("Create: Should return AccountDto when creation is successful")
     void create_ShouldNormalizeCurrency_AndReturnAccountDto() {
+        CreateAccountRequest request = new CreateAccountRequest("1", BigDecimal.TEN, "try");
+        BigDecimal mockLimit = new BigDecimal("5000.00");
+
+        when(accountProperties.defaultDailyLimit()).thenReturn(mockLimit);
+
         // Arrange
         Account savedAccount = Account.builder()
                 .id(1L)
@@ -49,7 +59,7 @@ class AccountServiceTest {
         when(accountRepository.save(any(Account.class))).thenReturn(Mono.just(savedAccount));
 
         // Act & Assert
-        StepVerifier.create(accountService.create("1", BigDecimal.TEN, "try"))
+        StepVerifier.create(accountService.create(request))
                 .expectNextMatches(dto ->
                         dto.id().equals("1") &&
                                 dto.currency().equals("TRY"))

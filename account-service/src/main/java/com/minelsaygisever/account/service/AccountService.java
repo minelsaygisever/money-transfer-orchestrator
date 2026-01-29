@@ -1,8 +1,10 @@
 package com.minelsaygisever.account.service;
 
+import com.minelsaygisever.account.config.AccountProperties;
 import com.minelsaygisever.account.domain.Account;
 import com.minelsaygisever.account.domain.AccountStatus;
 import com.minelsaygisever.account.dto.AccountDto;
+import com.minelsaygisever.account.dto.CreateAccountRequest;
 import com.minelsaygisever.account.exception.AccountNotActiveException;
 import com.minelsaygisever.account.exception.AccountNotFoundException;
 import com.minelsaygisever.account.exception.DailyLimitExceededException;
@@ -24,16 +26,18 @@ import java.time.Duration;
 public class AccountService {
 
     private final AccountRepository accountRepository;
+    private final AccountProperties properties;
 
-    public Mono<AccountDto> create(String customerId, BigDecimal initialAmount, String currency) {
-        String normalizedCurrency = currency.toUpperCase();
+    public Mono<AccountDto> create(CreateAccountRequest request) {
+        String normalizedCurrency = request.currency().toUpperCase();
+        BigDecimal limit = properties.defaultDailyLimit();
 
         Account account = Account.builder()
-                .customerId(customerId)
-                .balance(initialAmount)
+                .customerId(request.customerId())
+                .balance(request.initialAmount())
                 .currency(normalizedCurrency)
                 .status(AccountStatus.ACTIVE)
-                .dailyLimit(BigDecimal.valueOf(5000))
+                .dailyLimit(limit)
                 .build();
 
         return accountRepository.save(account)
