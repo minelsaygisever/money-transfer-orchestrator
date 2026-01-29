@@ -8,6 +8,7 @@ import com.minelsaygisever.account.exception.AccountNotFoundException;
 import com.minelsaygisever.account.exception.DailyLimitExceededException;
 import com.minelsaygisever.account.exception.InsufficientBalanceException;
 import com.minelsaygisever.account.repository.AccountRepository;
+import com.minelsaygisever.common.exception.CurrencyMismatchException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -25,10 +26,12 @@ public class AccountService {
     private final AccountRepository accountRepository;
 
     public Mono<AccountDto> create(String customerId, BigDecimal initialAmount, String currency) {
+        String normalizedCurrency = currency.toUpperCase();
+
         Account account = Account.builder()
                 .customerId(customerId)
                 .balance(initialAmount)
-                .currency(currency)
+                .currency(normalizedCurrency)
                 .status(AccountStatus.ACTIVE)
                 .dailyLimit(BigDecimal.valueOf(5000))
                 .build();
@@ -44,30 +47,25 @@ public class AccountService {
     }
 
     @Transactional
-    public Mono<Void> addMoney(String id, BigDecimal amount) {
+    public Mono<Void> addMoney(String id, BigDecimal amount, String currency) {
         return accountRepository.findById(Long.valueOf(id))
                 .flatMap(account -> {
-                    if (account.getStatus() != AccountStatus.ACTIVE) {
-                        return Mono.error(new AccountNotActiveException(id, "Account " + id + " is not ACTIVE!"));
-                    }
+                    validateAccountActive(account);
+                    validateCurrency(account, currency);
 
                     account.setBalance(account.getBalance().add(amount));
                     return accountRepository.save(account);
                 })
-                .retryWhen(Retry.backoff(10, Duration.ofMillis(50))
-                        .maxBackoff(Duration.ofMillis(500))
-                        .jitter(0.75)
-                        .filter(throwable -> throwable instanceof OptimisticLockingFailureException))
+                .retryWhen(retryStrategy())
                 .then();
     }
 
     @Transactional
-    public Mono<Void> withdraw(String id, BigDecimal amount) {
+    public Mono<Void> withdraw(String id, BigDecimal amount, String currency) {
         return accountRepository.findById(Long.valueOf(id))
                 .flatMap(account -> {
-                    if (AccountStatus.ACTIVE != account.getStatus()) {
-                        return Mono.error(new AccountNotActiveException(id, "Account " + id + " is not ACTIVE!"));
-                    }
+                    validateAccountActive(account);
+                    validateCurrency(account, currency);
 
                     if (account.getBalance().compareTo(amount) < 0) {
                         return Mono.error(new InsufficientBalanceException(id, "Insufficient funds for Account " + id));
@@ -80,9 +78,27 @@ public class AccountService {
                     account.setBalance(account.getBalance().subtract(amount));
                     return accountRepository.save(account);
                 })
-                .retryWhen(Retry.backoff(3, Duration.ofMillis(100))
-                        .filter(throwable -> throwable instanceof OptimisticLockingFailureException))
+                .retryWhen(retryStrategy())
                 .then();
+    }
+
+    private void validateAccountActive(Account account) {
+        if (account.getStatus() != AccountStatus.ACTIVE) {
+            throw new AccountNotActiveException(String.valueOf(account.getId()), "Account is not ACTIVE");
+        }
+    }
+
+    private void validateCurrency(Account account, String requestedCurrency) {
+        if (!account.getCurrency().equalsIgnoreCase(requestedCurrency)) {
+            throw new CurrencyMismatchException(
+                    String.format("Account currency is %s but requested %s", account.getCurrency(), requestedCurrency)
+            );
+        }
+    }
+
+    private Retry retryStrategy() {
+        return Retry.backoff(10, Duration.ofMillis(50))
+                .filter(throwable -> throwable instanceof OptimisticLockingFailureException);
     }
 
     private AccountDto mapToDto(Account account) {

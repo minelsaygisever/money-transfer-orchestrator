@@ -1,0 +1,20 @@
+spring:
+  r2dbc:
+    url: r2dbc:h2:mem:///testdb
+    username: sa
+    password:
+    pool:
+      enabled: false
+
+  sql:
+    init:
+      mode: never
+
+  flyway:
+    enabled: false
+
+  cloud:
+    stream:
+      bindings:
+        transfer-out-0:
+          destination: transfer-topic-test

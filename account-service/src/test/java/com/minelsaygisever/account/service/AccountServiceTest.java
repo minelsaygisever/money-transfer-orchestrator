@@ -7,6 +7,7 @@ import com.minelsaygisever.account.exception.AccountNotFoundException;
 import com.minelsaygisever.account.exception.DailyLimitExceededException;
 import com.minelsaygisever.account.exception.InsufficientBalanceException;
 import com.minelsaygisever.account.repository.AccountRepository;
+import com.minelsaygisever.common.exception.CurrencyMismatchException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,7 +36,7 @@ class AccountServiceTest {
 
     @Test
     @DisplayName("Create: Should return AccountDto when creation is successful")
-    void create_ShouldReturnAccountDto_WhenSuccessful() {
+    void create_ShouldNormalizeCurrency_AndReturnAccountDto() {
         // Arrange
         Account savedAccount = Account.builder()
                 .id(1L)
@@ -48,9 +49,14 @@ class AccountServiceTest {
         when(accountRepository.save(any(Account.class))).thenReturn(Mono.just(savedAccount));
 
         // Act & Assert
-        StepVerifier.create(accountService.create("1", BigDecimal.TEN, "TRY"))
-                .expectNextMatches(dto -> dto.id().equals("1") && dto.balance().equals(BigDecimal.TEN))
+        StepVerifier.create(accountService.create("1", BigDecimal.TEN, "try"))
+                .expectNextMatches(dto ->
+                        dto.id().equals("1") &&
+                                dto.currency().equals("TRY"))
                 .verifyComplete();
+
+        // Verify
+        verify(accountRepository).save(argThat(acc -> acc.getCurrency().equals("TRY")));
     }
 
     // --- FIND BY ID TESTS ---
@@ -59,7 +65,14 @@ class AccountServiceTest {
     @DisplayName("FindById: Should return AccountDto when account exists")
     void findById_ShouldReturnAccountDto_WhenExists() {
         // Arrange
-        Account account = Account.builder().id(1L).customerId("1").build();
+        Account account = Account.builder()
+                .id(1L)
+                .customerId("1")
+                .balance(BigDecimal.ZERO)
+                .currency("TRY")
+                .status(AccountStatus.ACTIVE)
+                .build();
+
         when(accountRepository.findById(1L)).thenReturn(Mono.just(account));
 
         // Act & Assert
@@ -88,7 +101,9 @@ class AccountServiceTest {
         // Arrange: Account has 100.00
         Account account = Account.builder()
                 .id(1L)
+                .customerId("12345")
                 .balance(new BigDecimal("100.00"))
+                .currency("TRY")
                 .status(AccountStatus.ACTIVE)
                 .dailyLimit(new BigDecimal("1000.00"))
                 .build();
@@ -98,7 +113,7 @@ class AccountServiceTest {
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
         // Act: Withdraw 50.00
-        Mono<Void> result = accountService.withdraw("1", new BigDecimal("50.00"));
+        Mono<Void> result = accountService.withdraw("1", new BigDecimal("50.00"), "TRY");
 
         // Assert
         StepVerifier.create(result)
@@ -111,19 +126,46 @@ class AccountServiceTest {
     }
 
     @Test
+    @DisplayName("Withdraw: Should throw CurrencyMismatchException when currency does not match")
+    void withdraw_ShouldThrowException_WhenCurrencyMismatch() {
+        // Arrange: Account is USD
+        Account account = Account.builder()
+                .id(1L)
+                .customerId("12345")
+                .balance(BigDecimal.valueOf(100))
+                .currency("USD")
+                .status(AccountStatus.ACTIVE)
+                .build();
+
+        when(accountRepository.findById(1L)).thenReturn(Mono.just(account));
+
+        // Act: Try to withdraw in TRY
+        Mono<Void> result = accountService.withdraw("1", BigDecimal.TEN, "TRY");
+
+        // Assert
+        StepVerifier.create(result)
+                .expectError(CurrencyMismatchException.class)
+                .verify();
+
+        verify(accountRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Withdraw: Should throw InsufficientBalanceException when balance is low")
     void withdraw_ShouldThrowException_WhenBalanceIsInsufficient() {
         // Arrange: Account has 50.00
         Account account = Account.builder()
                 .id(1L)
+                .customerId("12345")
                 .balance(BigDecimal.valueOf(50))
+                .currency("TRY")
                 .status(AccountStatus.ACTIVE)
                 .build();
 
         when(accountRepository.findById(1L)).thenReturn(Mono.just(account));
 
         // Act: Try to withdraw 100.00
-        Mono<Void> result = accountService.withdraw("1", BigDecimal.valueOf(100));
+        Mono<Void> result = accountService.withdraw("1", BigDecimal.valueOf(100), "TRY");
 
         // InsufficientBalanceException
         StepVerifier.create(result)
@@ -140,7 +182,9 @@ class AccountServiceTest {
         // Account daily limit is 1000 TL
         Account account = Account.builder()
                 .id(1L)
+                .customerId("12345")
                 .balance(BigDecimal.valueOf(5000))
+                .currency("TRY")
                 .dailyLimit(BigDecimal.valueOf(1000))
                 .status(AccountStatus.ACTIVE)
                 .build();
@@ -148,7 +192,7 @@ class AccountServiceTest {
         when(accountRepository.findById(1L)).thenReturn(Mono.just(account));
 
         // Try to withdraw 2000 TL
-        Mono<Void> result = accountService.withdraw("1", BigDecimal.valueOf(2000));
+        Mono<Void> result = accountService.withdraw("1", BigDecimal.valueOf(2000), "TRY");
 
         // DailyLimitExceededException
         StepVerifier.create(result)
@@ -164,14 +208,16 @@ class AccountServiceTest {
         // Arrange
         Account account = Account.builder()
                 .id(1L)
+                .customerId("12345")
                 .balance(BigDecimal.valueOf(5000))
+                .currency("TRY")
                 .status(AccountStatus.FROZEN) // Account is frozen
                 .build();
 
         when(accountRepository.findById(1L)).thenReturn(Mono.just(account));
 
         // Act
-        StepVerifier.create(accountService.withdraw("1", BigDecimal.TEN))
+        StepVerifier.create(accountService.withdraw("1", BigDecimal.TEN, "TRY"))
                 .expectError(AccountNotActiveException.class)
                 .verify();
 
@@ -186,7 +232,9 @@ class AccountServiceTest {
         // Arrange: Account has 100.00
         Account account = Account.builder()
                 .id(1L)
+                .customerId("12345")
                 .balance(new BigDecimal("100.00"))
+                .currency("TRY")
                 .status(AccountStatus.ACTIVE)
                 .build();
 
@@ -194,7 +242,7 @@ class AccountServiceTest {
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
         // Act: Add 50.00
-        StepVerifier.create(accountService.addMoney("1", new BigDecimal("50.00")))
+        StepVerifier.create(accountService.addMoney("1", new BigDecimal("50.00"), "TRY"))
                 .verifyComplete();
 
         // Verify: Balance should be 150.00
@@ -204,18 +252,43 @@ class AccountServiceTest {
     }
 
     @Test
+    @DisplayName("AddMoney: Should throw CurrencyMismatchException when currencies differ")
+    void addMoney_ShouldThrowException_WhenCurrencyMismatch() {
+        // Account is EUR
+        Account account = Account.builder()
+                .id(1L)
+                .customerId("12345")
+                .balance(new BigDecimal("100.00"))
+                .currency("EUR")
+                .status(AccountStatus.ACTIVE)
+                .build();
+
+        when(accountRepository.findById(1L)).thenReturn(Mono.just(account));
+
+        // Try to add USD
+        StepVerifier.create(accountService.addMoney("1", BigDecimal.TEN, "USD"))
+                .expectError(CurrencyMismatchException.class)
+                .verify();
+
+        verify(accountRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("AddMoney: Should throw AccountNotActiveException when account is CLOSED")
     void addMoney_ShouldThrowException_WhenAccountIsClosed() {
         // Arrange
         Account account = Account.builder()
                 .id(1L)
+                .customerId("12345")
+                .balance(new BigDecimal("100.00"))
+                .currency("TRY")
                 .status(AccountStatus.CLOSED)
                 .build();
 
         when(accountRepository.findById(1L)).thenReturn(Mono.just(account));
 
         // Act
-        StepVerifier.create(accountService.addMoney("1", BigDecimal.TEN))
+        StepVerifier.create(accountService.addMoney("1", BigDecimal.TEN, "TRY"))
                 .expectError(AccountNotActiveException.class)
                 .verify();
 

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
@@ -23,5 +24,6 @@ public record TransferApiRequest(
 
         @Schema(description = "Currency code", example = "TRY")
         @NotBlank(message = "Currency is required")
+        @Size(min = 3, max = 3, message = "Currency must be exactly 3 characters (ISO 4217)")
         String currency
 ) {}

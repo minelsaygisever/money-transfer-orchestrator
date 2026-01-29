@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS transfers (
     id SERIAL PRIMARY KEY,
-    idempotency_key VARCHAR(255) UNIQUE NOT NULL UNIQUE,
+    idempotency_key VARCHAR(255) NOT NULL UNIQUE,
     transaction_id VARCHAR(255) NOT NULL UNIQUE,
     sender_account_id VARCHAR(255) NOT NULL,
     receiver_account_id VARCHAR(255) NOT NULL,
