@@ -1,6 +1,7 @@
 package com.minelsaygisever.account.controller.api;
 
 import com.minelsaygisever.account.dto.AccountDto;
+import com.minelsaygisever.account.dto.CreateAccountRequest;
 import com.minelsaygisever.account.dto.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -34,16 +36,7 @@ public interface AccountApi {
     })
     @PostMapping
     Mono<ResponseEntity<AccountDto>> create(
-            @Parameter(description = "Customer ID", example = "12345")
-            @RequestParam @NotBlank(message = "Customer ID cannot be empty") String customerId,
-
-            @Parameter(description = "Initial deposit", example = "1000.00")
-            @RequestParam @NotNull(message = "Initial amount is required")
-            @DecimalMin(value = "0.00", message = "Initial amount cannot be negative") BigDecimal initialAmount,
-
-            @Parameter(description = "Currency code (ISO 4217)", example = "TRY")
-            @RequestParam @NotBlank(message = "Currency is required")
-            @Size(min = 3, max = 3, message = "Currency code must be 3 characters") String currency
+            @RequestBody @Valid CreateAccountRequest request
     );
 
 

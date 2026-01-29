@@ -12,9 +12,12 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 
+import static reactor.netty.http.HttpConnectionLiveness.log;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // --- BUSINESS EXCEPTIONS
     @ExceptionHandler(AccountNotFoundException.class)
     public Mono<ResponseEntity<ErrorResponse>> handleAccountNotFound(AccountNotFoundException ex, ServerWebExchange exchange) {
         return Mono.just(createErrorResponse(
@@ -31,16 +34,6 @@ public class GlobalExceptionHandler {
                 HttpStatus.UNPROCESSABLE_ENTITY,
                 "ACCOUNT_NOT_ACTIVE",
                 ex.getMessage(),
-                exchange
-        ));
-    }
-
-    @ExceptionHandler(Exception.class)
-    public Mono<ResponseEntity<ErrorResponse>> handleGeneralException(Exception ex, ServerWebExchange exchange) {
-        return Mono.just(createErrorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                "INTERNAL_SERVER_ERROR",
-                "Unexpected error occurred: " + ex.getMessage(),
                 exchange
         ));
     }
@@ -65,6 +58,8 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    // --- VALIDATION EXCEPTIONS
+
     @ExceptionHandler(CurrencyMismatchException.class)
     public Mono<ResponseEntity<ErrorResponse>> handleCurrencyMismatch(CurrencyMismatchException ex, ServerWebExchange exchange) {
         return Mono.just(createErrorResponse(
@@ -84,6 +79,21 @@ public class GlobalExceptionHandler {
                 exchange
         ));
     }
+
+    // --- CRITICAL / UNEXPECTED EXCEPTIONS
+
+    @ExceptionHandler(Exception.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleGeneralException(Exception ex, ServerWebExchange exchange) {
+        log.error("Unhandled exception occurred at path: {}", exchange.getRequest().getPath(), ex);
+
+        return Mono.just(createErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "INTERNAL_SERVER_ERROR",
+                "An unexpected error occurred. Please try again later or contact support.",
+                exchange
+        ));
+    }
+
 
     private ResponseEntity<ErrorResponse> createErrorResponse(HttpStatus status, String errorKey, String message, ServerWebExchange exchange) {
         ErrorResponse errorResponse = new ErrorResponse(

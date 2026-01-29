@@ -21,3 +21,8 @@ logging:
   level:
     org.springframework.r2dbc: DEBUG
     io.r2dbc.postgresql: INFO
+
+banking:
+  account:
+    default-daily-limit: 5000.00
+    default-currency: TRY
