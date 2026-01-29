@@ -19,6 +19,13 @@ services:
       retries: 5
     restart: unless-stopped
 
+  redis:
+    image: redis:alpine
+    container_name: banking-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
   account-service:
     build:
       context: .
@@ -40,11 +47,15 @@ services:
       dockerfile: transfer-service/Dockerfile
     container_name: banking-transfer-service
     ports:
-      - "8081:8081"
+      - "8081:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       - SPRING_R2DBC_URL=r2dbc:postgresql://postgres:5432/transfer_db
       - SPRING_R2DBC_USERNAME=admin
       - SPRING_R2DBC_PASSWORD=password
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379

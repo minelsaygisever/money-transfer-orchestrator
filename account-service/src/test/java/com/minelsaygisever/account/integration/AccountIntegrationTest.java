@@ -37,12 +37,13 @@ public class AccountIntegrationTest {
     }
 
     @Test
-    void shouldCreateAccount_AndSaveToDatabase() {
-        var createMono = accountService.create("12345", new BigDecimal("100.00"), "TRY");
+    void shouldCreateAccount_AndSaveToDatabase_WithNormalizedCurrency() {
+        var createMono = accountService.create("12345", new BigDecimal("100.00"), "try");
 
         StepVerifier.create(createMono)
                 .expectNextMatches(accountDto ->
                         accountDto.customerId().equals("12345") &&
+                                accountDto.currency().equals("TRY") &&
                                 accountDto.balance().compareTo(new BigDecimal("100.00")) == 0
                 )
                 .verifyComplete();
@@ -50,6 +51,7 @@ public class AccountIntegrationTest {
         StepVerifier.create(accountRepository.findAll())
                 .expectNextMatches(account ->
                         account.getCustomerId().equals("12345") &&
+                                account.getCurrency().equals("TRY") &&
                                 account.getBalance().compareTo(new BigDecimal("100.00")) == 0
                 )
                 .verifyComplete();
@@ -61,7 +63,7 @@ public class AccountIntegrationTest {
         Objects.requireNonNull(createdAccount, "The account could not be created during setup; the returned value is null!");
         String accountId = createdAccount.id();
 
-        var withdrawMono = accountService.withdraw(accountId, new BigDecimal("200.00"));
+        var withdrawMono = accountService.withdraw(accountId, new BigDecimal("200.00"), "USD");
 
         StepVerifier.create(withdrawMono)
                 .verifyComplete();
@@ -80,9 +82,9 @@ public class AccountIntegrationTest {
         String accountId = account.id();
 
         // 3 different threads are trying to withdraw 200 TL simultaneously.
-        Mono<Void> tx1 = accountService.withdraw(accountId, new BigDecimal("200.00"));
-        Mono<Void> tx2 = accountService.withdraw(accountId, new BigDecimal("200.00"));
-        Mono<Void> tx3 = accountService.withdraw(accountId, new BigDecimal("200.00"));
+        Mono<Void> tx1 = accountService.withdraw(accountId, new BigDecimal("200.00"), "TRY");
+        Mono<Void> tx2 = accountService.withdraw(accountId, new BigDecimal("200.00"), "TRY");
+        Mono<Void> tx3 = accountService.withdraw(accountId, new BigDecimal("200.00"), "TRY");
         StepVerifier.create(Mono.when(tx1, tx2, tx3))
                 .verifyComplete();
 

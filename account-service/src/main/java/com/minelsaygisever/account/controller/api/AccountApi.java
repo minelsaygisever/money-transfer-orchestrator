@@ -9,12 +9,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 
+@Validated
 @Tag(name = "Account Management", description = "APIs for creating accounts, adding money, and withdrawals.")
 @RequestMapping("/api/v1/accounts")
 public interface AccountApi {
@@ -28,14 +34,16 @@ public interface AccountApi {
     })
     @PostMapping
     Mono<ResponseEntity<AccountDto>> create(
-            @Parameter(description = "Customer ID from Identity Provider", example = "1")
-            @RequestParam String customerId,
+            @Parameter(description = "Customer ID", example = "12345")
+            @RequestParam @NotBlank(message = "Customer ID cannot be empty") String customerId,
 
-            @Parameter(description = "Initial deposit amount", example = "1000.00")
-            @RequestParam BigDecimal initialAmount,
+            @Parameter(description = "Initial deposit", example = "1000.00")
+            @RequestParam @NotNull(message = "Initial amount is required")
+            @DecimalMin(value = "0.00", message = "Initial amount cannot be negative") BigDecimal initialAmount,
 
             @Parameter(description = "Currency code (ISO 4217)", example = "TRY")
-            @RequestParam String currency
+            @RequestParam @NotBlank(message = "Currency is required")
+            @Size(min = 3, max = 3, message = "Currency code must be 3 characters") String currency
     );
 
 
@@ -64,8 +72,13 @@ public interface AccountApi {
             @Parameter(description = "Account ID", example = "1")
             @PathVariable String id,
 
-            @Parameter(description = "Amount to deposit", example = "500.00")
-            @RequestParam BigDecimal amount
+            @RequestParam @NotNull @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
+            BigDecimal amount,
+
+            @Parameter(description = "Currency code (ISO 4217)", example = "TRY")
+            @RequestParam @NotBlank(message = "Currency is required")
+            @Size(min = 3, max = 3, message = "Currency code must be 3 characters")
+            String currency
     );
 
 
@@ -81,6 +94,12 @@ public interface AccountApi {
             @PathVariable String id,
 
             @Parameter(description = "Amount to withdraw", example = "100.00")
-            @RequestParam BigDecimal amount
+            @RequestParam @NotNull @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
+            BigDecimal amount,
+
+            @Parameter(description = "Currency code (ISO 4217)", example = "TRY")
+            @RequestParam @NotBlank(message = "Currency is required")
+            @Size(min = 3, max = 3, message = "Currency code must be 3 characters")
+            String currency
     );
 }

@@ -29,14 +29,14 @@ public class AccountController implements AccountApi {
     }
 
     @Override
-    public Mono<ResponseEntity<Void>> addMoney(String id, BigDecimal amount) {
-        return accountService.addMoney(id, amount)
+    public Mono<ResponseEntity<Void>> addMoney(String id, BigDecimal amount, String currency) {
+        return accountService.addMoney(id, amount, currency)
                 .thenReturn(ResponseEntity.ok().build());
     }
 
     @Override
-    public Mono<ResponseEntity<Void>> withdraw(String id, BigDecimal amount) {
-        return accountService.withdraw(id, amount)
+    public Mono<ResponseEntity<Void>> withdraw(String id, BigDecimal amount, String currency) {
+        return accountService.withdraw(id, amount, currency)
                 .thenReturn(ResponseEntity.ok().build());
     }
 }
