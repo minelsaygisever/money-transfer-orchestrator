@@ -5,8 +5,22 @@ spring:
   application:
     name: transfer-service
 
+  cloud:
+    stream:
+      kafka:
+        binder:
+          brokers: localhost:9092
+          auto-create-topics: true
+      bindings:
+        transfer-out-0:
+          destination: transfer-events
+          producer:
+            partition-key-expression: headers['partitionKey']
+        transfer-dlq-0:
+          destination: transfer-events-dlq
+
   r2dbc:
-    url: r2dbc:postgresql://postgres:5432/banking_core
+    url: r2dbc:postgresql://localhost:5432/banking_core
     username: admin
     password: password
     pool:
@@ -19,8 +33,16 @@ spring:
 
   data:
     redis:
-      host: redis
+      host: localhost
       port: 6379
 
 transfer:
   lock-timeout: 5m
+  outbox-batch-size: 20
+  outbox-binding-name: transfer-out-0
+  outbox-dlq-binding-name: transfer-dlq-0
+  outbox-polling-interval: 1000
+  outbox-max-retries: 5
+  backoff-initial-delay: 1m
+  backoff-max-delay: 60m
+  backoff-multiplier: 2.0
