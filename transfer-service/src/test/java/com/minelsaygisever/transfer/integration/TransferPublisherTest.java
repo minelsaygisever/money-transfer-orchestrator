@@ -18,6 +18,7 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -45,6 +46,9 @@ class TransferPublisherTest {
     @ServiceConnection(name = "redis")
     static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:alpine"))
             .withExposedPorts(6379);
+
+    @Autowired
+    private TransactionalOperator transactionalOperator;
 
     @Autowired
     private OutboxRepository outboxRepository;
@@ -82,7 +86,7 @@ class TransferPublisherTest {
                 .build();
         outboxRepository.save(outbox).block();
 
-        when(streamBridge.send(eq(properties.outboxBindingName()), any(Message.class))).thenReturn(true);
+        when(streamBridge.send(eq(properties.outbox().bindingName()), any(Message.class))).thenReturn(true);
 
         // 2. ACT
         StepVerifier.create(publisher.processOutbox())
@@ -94,7 +98,7 @@ class TransferPublisherTest {
                 .expectNextMatches(saved -> saved.getStatus() == OutboxStatus.COMPLETED)
                 .verifyComplete();
 
-        verify(streamBridge, times(1)).send(eq(properties.outboxBindingName()), any(Message.class));
+        verify(streamBridge, times(1)).send(eq(properties.outbox().bindingName()), any(Message.class));
     }
 
     @Test
@@ -112,7 +116,7 @@ class TransferPublisherTest {
                 .build();
         outboxRepository.save(outbox).block();
 
-        when(streamBridge.send(eq(properties.outboxBindingName()), any(Message.class))).thenReturn(false);
+        when(streamBridge.send(eq(properties.outbox().bindingName()), any(Message.class))).thenReturn(false);
 
         // 2. ACT
         StepVerifier.create(publisher.processOutbox())
@@ -144,7 +148,7 @@ class TransferPublisherTest {
                 .build();
         outboxRepository.save(outbox).block();
 
-        when(streamBridge.send(eq(properties.outboxDlqBindingName()), any())).thenReturn(true);
+        when(streamBridge.send(eq(properties.outbox().dlqBindingName()), any())).thenReturn(true);
 
         // 2. ACT
         StepVerifier.create(publisher.processOutbox())
@@ -158,7 +162,7 @@ class TransferPublisherTest {
                 )
                 .verifyComplete();
 
-        verify(streamBridge).send(eq(properties.outboxDlqBindingName()), anyString());
+        verify(streamBridge).send(eq(properties.outbox().dlqBindingName()), anyString());
     }
 
     @Test
@@ -176,7 +180,7 @@ class TransferPublisherTest {
                 .build();
         outboxRepository.save(outbox).block();
 
-        when(streamBridge.send(eq(properties.outboxBindingName()), any(Message.class)))
+        when(streamBridge.send(eq(properties.outbox().bindingName()), any(Message.class)))
                 .thenAnswer(invocation -> {
                     Thread.sleep(500);
                     return true;
@@ -184,10 +188,12 @@ class TransferPublisherTest {
 
         // 2. ACT
         Mono<Void> execution1 = publisher.processOutbox()
+                .as(transactionalOperator::transactional)
                 .subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic())
                 .then();
 
         Mono<Void> execution2 = publisher.processOutbox()
+                .as(transactionalOperator::transactional)
                 .subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic())
                 .then();
 
@@ -196,6 +202,6 @@ class TransferPublisherTest {
 
         // 3. ASSERT
         // Kafka must have only been visited once
-        verify(streamBridge, times(1)).send(eq(properties.outboxBindingName()), any(Message.class));
+        verify(streamBridge, times(1)).send(eq(properties.outbox().bindingName()), any(Message.class));
     }
 }

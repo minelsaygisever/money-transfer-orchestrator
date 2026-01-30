@@ -1,56 +1,50 @@
 package com.minelsaygisever.transfer.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
 
+@Validated
 @ConfigurationProperties(prefix = "transfer")
 public record TransferProperties(
+
+        @DefaultValue("5m")
         Duration lockTimeout,
-        Integer outboxBatchSize,
-        String outboxBindingName,
-        String outboxDlqBindingName,
-        Long outboxPollingInterval,
-        Integer outboxMaxRetries,
-        Duration backoffInitialDelay,
-        Duration backoffMaxDelay,
-        Double backoffMultiplier
+
+        @DefaultValue
+        OutboxProperties outbox,
+
+        @DefaultValue
+        BackoffProperties backoff
 ) {
-    public TransferProperties {
-        if (lockTimeout == null) {
-            lockTimeout = Duration.ofMinutes(5);
-        }
 
-        if (outboxBatchSize == null) {
-            outboxBatchSize = 10;
-        }
+    public record OutboxProperties(
+            @DefaultValue("10")
+            Integer batchSize,
 
-        if (outboxBindingName == null) {
-            outboxBindingName = "transfer-out-0";
-        }
+            @DefaultValue("transfer-out-0")
+            String bindingName,
 
-        if (outboxDlqBindingName == null) {
-            outboxDlqBindingName = "transfer-dlq-0";
-        }
+            @DefaultValue("transfer-dlq-0")
+            String dlqBindingName,
 
-        if (outboxPollingInterval == null) {
-            outboxPollingInterval = 500L;
-        }
+            @DefaultValue("500ms")
+            Duration pollingInterval,
 
-        if (outboxMaxRetries == null) {
-            outboxMaxRetries = 5;
-        }
+            @DefaultValue("5")
+            Integer maxRetries
+    ) {}
 
-        if (backoffInitialDelay == null) {
-            backoffInitialDelay = Duration.ofMinutes(1);
-        }
+    public record BackoffProperties(
+            @DefaultValue("1m")
+            Duration initialDelay,
 
-        if (backoffMaxDelay == null) {
-            backoffMaxDelay = Duration.ofHours(1);
-        }
+            @DefaultValue("60m")
+            Duration maxDelay,
 
-        if (backoffMultiplier == null) {
-            backoffMultiplier = 2.0;
-        }
-    }
+            @DefaultValue("2.0")
+            Double multiplier
+    ) {}
 }

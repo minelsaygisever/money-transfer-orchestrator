@@ -38,11 +38,15 @@ spring:
 
 transfer:
   lock-timeout: 5m
-  outbox-batch-size: 20
-  outbox-binding-name: transfer-out-0
-  outbox-dlq-binding-name: transfer-dlq-0
-  outbox-polling-interval: 1000
-  outbox-max-retries: 5
-  backoff-initial-delay: 1m
-  backoff-max-delay: 60m
-  backoff-multiplier: 2.0
+
+  outbox:
+    batch-size: 20
+    binding-name: transfer-out-0
+    dlq-binding-name: transfer-dlq-0
+    polling-interval: 1000ms
+    max-retries: 5
+
+  backoff:
+    initial-delay: 1m
+    max-delay: 60m
+    multiplier: 2.0

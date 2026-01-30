@@ -12,7 +12,6 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -43,7 +42,7 @@ public class TransferOutboxPublisher {
         return outboxRepository.findLockedBatch(
                         OutboxStatus.PENDING,
                         LocalDateTime.now(),
-                        properties.outboxBatchSize()
+                        properties.outbox().batchSize()
                 )
                 .flatMap(this::publishEvent);
     }
@@ -57,7 +56,7 @@ public class TransferOutboxPublisher {
                             .setHeader("partitionKey", outbox.getId())
                             .build();
 
-                    boolean sent = streamBridge.send(properties.outboxBindingName(), message);
+                    boolean sent = streamBridge.send(properties.outbox().bindingName(), message);
 
                     if (!sent) {
                         throw new EventPublishingException("StreamBridge failed to send event for Outbox ID: " + outbox.getId());
@@ -79,7 +78,7 @@ public class TransferOutboxPublisher {
         log.error("Failed to publish event. ID: {}", outbox.getId(), ex);
 
         int currentRetryCount = outbox.getRetryCount() == null ? 0 : outbox.getRetryCount();
-        int maxRetries = properties.outboxMaxRetries();
+        int maxRetries = properties.outbox().maxRetries();
 
         if (currentRetryCount >= maxRetries) {
             log.warn("Max retries ({}) reached for ID: {}. Attempting to move to DLQ.", maxRetries, outbox.getId());
@@ -103,8 +102,8 @@ public class TransferOutboxPublisher {
             outbox.setRetryCount(nextRetryCount);
 
             // Formula: Initial * (Multiplier ^ (Retry - 1))
-            long delaySeconds = (long) (properties.backoffInitialDelay().toSeconds() * Math.pow(properties.backoffMultiplier(), currentRetryCount));
-            long cappedDelaySeconds = Math.min(delaySeconds, properties.backoffMaxDelay().toSeconds());
+            long delaySeconds = (long) (properties.backoff().initialDelay().toSeconds() * Math.pow(properties.backoff().multiplier(), currentRetryCount));
+            long cappedDelaySeconds = Math.min(delaySeconds, properties.backoff().maxDelay().toSeconds());
             LocalDateTime nextAttempt = LocalDateTime.now().plusSeconds(cappedDelaySeconds);
             outbox.setNextAttemptTime(nextAttempt);
 
@@ -116,8 +115,8 @@ public class TransferOutboxPublisher {
 
     private Mono<Boolean> sendToDeadLetterQueue(Outbox outbox) {
         return Mono.fromCallable(() -> {
-            log.info("Sending to DLQ Topic: {}", properties.outboxDlqBindingName());
-            boolean sent = streamBridge.send(properties.outboxDlqBindingName(), outbox.getPayload());
+            log.info("Sending to DLQ Topic: {}", properties.outbox().dlqBindingName());
+            boolean sent = streamBridge.send(properties.outbox().dlqBindingName(), outbox.getPayload());
             if (!sent) {
                 throw new EventPublishingException("Failed to send to DLQ");
             }
