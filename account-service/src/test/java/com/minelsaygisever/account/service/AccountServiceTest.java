@@ -2,7 +2,7 @@ package com.minelsaygisever.account.service;
 
 import com.minelsaygisever.account.config.AccountProperties;
 import com.minelsaygisever.account.domain.Account;
-import com.minelsaygisever.account.domain.AccountStatus;
+import com.minelsaygisever.account.domain.enums.AccountStatus;
 import com.minelsaygisever.account.dto.CreateAccountRequest;
 import com.minelsaygisever.account.exception.AccountNotActiveException;
 import com.minelsaygisever.account.exception.AccountNotFoundException;

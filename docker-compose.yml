@@ -59,10 +59,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
       - SPRING_R2DBC_URL=r2dbc:postgresql://postgres:5432/account_db
       - SPRING_R2DBC_USERNAME=admin
       - SPRING_R2DBC_PASSWORD=password
+      - SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS=kafka:29092
 
   transfer-service:
     build:

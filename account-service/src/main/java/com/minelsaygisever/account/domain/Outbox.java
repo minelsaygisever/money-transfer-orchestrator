@@ -1,14 +1,13 @@
 package com.minelsaygisever.account.domain;
 
-import com.minelsaygisever.account.domain.enums.AccountStatus;
+import com.minelsaygisever.account.domain.enums.AggregateType;
+import com.minelsaygisever.account.domain.enums.EventType;
+import com.minelsaygisever.account.domain.enums.OutboxStatus;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -18,41 +17,35 @@ import java.util.Objects;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("accounts")
-public class Account {
+@Table("outbox")
+public class Outbox {
 
     @Id
     private Long id;
 
-    @NonNull
-    private String customerId;
+    private AggregateType aggregateType; // domain (ACCOUNT)
 
-    @NonNull
-    private BigDecimal balance;
+    private String aggregateId;
 
-    @NonNull
-    private String currency;
+    private EventType type;          // event (ACCOUNT_DEBITED)
 
-    @NonNull
-    private AccountStatus status;
+    private String payload;       // content (JSON string)
 
-    private BigDecimal dailyLimit;
+    private OutboxStatus status;
 
-    @Version
-    private Long version;
+    private Integer retryCount;
 
     @CreatedDate
     private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
+    private LocalDateTime nextAttemptTime;
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Account account = (Account) o;
-        return id != null && Objects.equals(id, account.id);
+        Outbox outbox = (Outbox) o;
+        return id != null && Objects.equals(id, outbox.id);
     }
 
     @Override

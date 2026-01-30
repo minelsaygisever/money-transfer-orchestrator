@@ -2,7 +2,7 @@ package com.minelsaygisever.account.service;
 
 import com.minelsaygisever.account.config.AccountProperties;
 import com.minelsaygisever.account.domain.Account;
-import com.minelsaygisever.account.domain.AccountStatus;
+import com.minelsaygisever.account.domain.enums.AccountStatus;
 import com.minelsaygisever.account.dto.AccountDto;
 import com.minelsaygisever.account.dto.CreateAccountRequest;
 import com.minelsaygisever.account.exception.AccountNotActiveException;
@@ -53,6 +53,7 @@ public class AccountService {
     @Transactional
     public Mono<Void> addMoney(String id, BigDecimal amount, String currency) {
         return accountRepository.findById(Long.valueOf(id))
+                .switchIfEmpty(Mono.error(new AccountNotFoundException(id, "Account not found with id: " + id)))
                 .flatMap(account -> {
                     validateAccountActive(account);
                     validateCurrency(account, currency);
@@ -66,7 +67,10 @@ public class AccountService {
 
     @Transactional
     public Mono<Void> withdraw(String id, BigDecimal amount, String currency) {
+        System.out.println("DEBUG: withdraw called for id: " + id);
+
         return accountRepository.findById(Long.valueOf(id))
+                .switchIfEmpty(Mono.error(new AccountNotFoundException(id, "Account not found with id: " + id)))
                 .flatMap(account -> {
                     validateAccountActive(account);
                     validateCurrency(account, currency);

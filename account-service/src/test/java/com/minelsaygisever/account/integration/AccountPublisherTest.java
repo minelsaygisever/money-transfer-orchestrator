@@ -1,12 +1,12 @@
-package com.minelsaygisever.transfer.integration;
+package com.minelsaygisever.account.integration;
 
-import com.minelsaygisever.transfer.config.TransferProperties;
-import com.minelsaygisever.transfer.domain.Outbox;
-import com.minelsaygisever.transfer.domain.enums.AggregateType;
-import com.minelsaygisever.transfer.domain.enums.EventType;
-import com.minelsaygisever.transfer.domain.enums.OutboxStatus;
-import com.minelsaygisever.transfer.repository.OutboxRepository;
-import com.minelsaygisever.transfer.service.TransferOutboxPublisher;
+import com.minelsaygisever.account.config.AccountProperties;
+import com.minelsaygisever.account.domain.Outbox;
+import com.minelsaygisever.account.domain.enums.AggregateType;
+import com.minelsaygisever.account.domain.enums.EventType;
+import com.minelsaygisever.account.domain.enums.OutboxStatus;
+import com.minelsaygisever.account.repository.OutboxRepository;
+import com.minelsaygisever.account.service.AccountOutboxPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,8 +15,9 @@ import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.cloud.stream.binder.test.TestChannelBinderConfiguration;
 import org.springframework.cloud.stream.function.StreamBridge;
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.context.annotation.Import;
 import org.springframework.messaging.Message;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -32,13 +33,13 @@ import reactor.test.StepVerifier;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
-@TestPropertySource(properties = "transfer.outbox-polling-interval=3600000")
-class TransferPublisherTest {
+@Import(TestChannelBinderConfiguration.class)
+@TestPropertySource(properties = "banking.account.outbox.polling-interval=3600000")
+class AccountPublisherTest {
 
     @Container
     @ServiceConnection
@@ -51,19 +52,16 @@ class TransferPublisherTest {
             .withExposedPorts(6379);
 
     @Autowired
-    private TransactionalOperator transactionalOperator;
-
-    @Autowired
     private OutboxRepository outboxRepository;
 
     @Autowired
-    private TransferOutboxPublisher publisher;
+    private AccountOutboxPublisher publisher;
 
     @Autowired
-    private ReactiveRedisTemplate<String, Object> redisTemplate;
+    private AccountProperties properties;
 
     @Autowired
-    private TransferProperties properties;
+    private TransactionalOperator transactionalOperator;
 
     @MockitoBean
     private StreamBridge streamBridge;
@@ -74,20 +72,19 @@ class TransferPublisherTest {
     @BeforeEach
     void setup() {
         outboxRepository.deleteAll().block();
-        redisTemplate.execute(conn -> conn.serverCommands().flushAll()).blockLast();
     }
 
     @Test
-    @DisplayName("Success Scenario: Outbox PENDING -> Kafka Send OK -> Status COMPLETED")
+    @DisplayName("Success Scenario: Outbox PENDING -> Kafka Send OK (Check PartitionKey) -> Status COMPLETED")
     void shouldMarkOutboxAsCompleted_WhenKafkaSendIsSuccessful() {
         // 1. ARRANGE
-        String aggregateId = "TX-TRANSFER-SAFE";
+        String aggregateId = "TX-HAPPY-PATH";
 
         Outbox outbox = Outbox.builder()
-                .aggregateType(AggregateType.TRANSFER)
+                .aggregateType(AggregateType.ACCOUNT)
                 .aggregateId(aggregateId)
-                .type(EventType.TRANSFER_INITIATED)
-                .payload("{}")
+                .type(EventType.ACCOUNT_DEBITED)
+                .payload("{\"amount\": 100}")
                 .status(OutboxStatus.PENDING)
                 .retryCount(0)
                 .createdAt(LocalDateTime.now())
@@ -106,7 +103,7 @@ class TransferPublisherTest {
 
         Message<String> sentMessage = messageCaptor.getValue();
         assertThat(sentMessage.getHeaders().get("partitionKey"))
-                .as("Partition Key must be the Aggregate ID to ensure strict ordering")
+                .as("Partition Key must be AggregateID")
                 .isEqualTo(aggregateId);
 
         StepVerifier.create(outboxRepository.findAll())
@@ -115,13 +112,13 @@ class TransferPublisherTest {
     }
 
     @Test
-    @DisplayName("Retry Scenario: Outbox PENDING -> Kafka Fail -> Status PENDING & RetryCount Increased")
-    void shouldScheduleRetry_WhenKafkaSendFails() {
+    @DisplayName("Retry Logic: When Kafka fails, update RetryCount and NextAttemptTime")
+    void shouldScheduleRetry_WhenStreamBridgeFails() {
         // 1. ARRANGE
         Outbox outbox = Outbox.builder()
-                .aggregateType(AggregateType.TRANSFER)
-                .aggregateId("tx-2")
-                .type(EventType.TRANSFER_INITIATED)
+                .aggregateType(AggregateType.ACCOUNT)
+                .aggregateId("TX-RETRY-TEST")
+                .type(EventType.ACCOUNT_DEBITED)
                 .payload("{}")
                 .status(OutboxStatus.PENDING)
                 .retryCount(0)
@@ -132,7 +129,7 @@ class TransferPublisherTest {
         when(streamBridge.send(eq(properties.outbox().bindingName()), any(Message.class))).thenReturn(false);
 
         // 2. ACT
-        StepVerifier.create(publisher.processOutbox())
+        StepVerifier.create(publisher.processOutbox().as(transactionalOperator::transactional))
                 .expectNextCount(1)
                 .verifyComplete();
 
@@ -147,15 +144,15 @@ class TransferPublisherTest {
     }
 
     @Test
-    @DisplayName("DLQ Scenario: Max Retries Reached -> Send to DLQ -> Status FAILED")
-    void shouldMoveToDLQ_WhenMaxRetriesReached() {
+    @DisplayName("DLQ Logic: Max Retries Reached -> Mark FAILED (and send to DLQ)")
+    void shouldMarkFailed_WhenMaxRetriesReached() {
         // 1. ARRANGE
         int maxRetries = properties.outbox().maxRetries();
 
         Outbox outbox = Outbox.builder()
-                .aggregateType(AggregateType.TRANSFER)
-                .aggregateId("tx-3")
-                .type(EventType.TRANSFER_INITIATED)
+                .aggregateType(AggregateType.ACCOUNT)
+                .aggregateId("TX-DLQ-TEST")
+                .type(EventType.ACCOUNT_DEBITED)
                 .payload("{}")
                 .status(OutboxStatus.PENDING)
                 .retryCount(maxRetries) // Limit reached
@@ -166,7 +163,7 @@ class TransferPublisherTest {
         when(streamBridge.send(eq(properties.outbox().dlqBindingName()), any())).thenReturn(true);
 
         // 2. ACT
-        StepVerifier.create(publisher.processOutbox())
+        StepVerifier.create(publisher.processOutbox().as(transactionalOperator::transactional))
                 .expectNextCount(1)
                 .verifyComplete();
 
@@ -177,7 +174,7 @@ class TransferPublisherTest {
                 )
                 .verifyComplete();
 
-        verify(streamBridge).send(eq(properties.outbox().dlqBindingName()), anyString());
+        verify(streamBridge).send(eq(properties.outbox().dlqBindingName()), any());
     }
 
     @Test
@@ -185,9 +182,9 @@ class TransferPublisherTest {
     void shouldProcessOnlyOnce_WhenCalledConcurrently() {
         // 1. ARRANGE
         Outbox outbox = Outbox.builder()
-                .aggregateType(AggregateType.TRANSFER)
-                .aggregateId("tx-race")
-                .type(EventType.TRANSFER_INITIATED)
+                .aggregateType(AggregateType.ACCOUNT)
+                .aggregateId("TX-RACE")
+                .type(EventType.ACCOUNT_DEBITED)
                 .payload("{}")
                 .status(OutboxStatus.PENDING)
                 .retryCount(0)
