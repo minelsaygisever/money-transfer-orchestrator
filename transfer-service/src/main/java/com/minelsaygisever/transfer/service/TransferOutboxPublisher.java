@@ -53,7 +53,7 @@ public class TransferOutboxPublisher {
 
                     Message<String> message = MessageBuilder
                             .withPayload(outbox.getPayload())
-                            .setHeader("partitionKey", outbox.getId())
+                            .setHeader("partitionKey", outbox.getAggregateId())
                             .build();
 
                     boolean sent = streamBridge.send(properties.outbox().bindingName(), message);
