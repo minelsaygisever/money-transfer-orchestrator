@@ -45,6 +45,9 @@ public class Transfer {
     @Column("currency")
     private String currency;
 
+    @Column("request_hash")
+    private String requestHash;
+
     @Column("state")
     private TransferState state;
 

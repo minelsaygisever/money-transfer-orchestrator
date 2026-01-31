@@ -32,6 +32,18 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(IdempotencyKeyReuseException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleIdempotencyKeyReuse(IdempotencyKeyReuseException ex, ServerWebExchange exchange) {
+        log.warn("Idempotency key reuse detected: {}", ex.getMessage());
+
+        return Mono.just(createErrorResponse(
+                HttpStatus.CONFLICT,
+                "IDEMPOTENCY_KEY_REUSE",
+                ex.getMessage(),
+                exchange
+        ));
+    }
+
     @ExceptionHandler(CurrencyMismatchException.class)
     public Mono<ResponseEntity<ErrorResponse>> handleCurrencyMismatch(CurrencyMismatchException ex, ServerWebExchange exchange) {
         return Mono.just(createErrorResponse(
@@ -74,6 +86,16 @@ public class GlobalExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "SYSTEM_ERROR",
                 "A system error occurred during transfer initialization. Please try again.",
+                exchange
+        ));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleIllegalArgument(IllegalArgumentException ex, ServerWebExchange exchange) {
+        return Mono.just(createErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                "VALIDATION_ERROR",
+                ex.getMessage(),
                 exchange
         ));
     }

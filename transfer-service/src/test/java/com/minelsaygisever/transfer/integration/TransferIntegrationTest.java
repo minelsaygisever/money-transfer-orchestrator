@@ -5,10 +5,12 @@ import com.minelsaygisever.transfer.domain.enums.AggregateType;
 import com.minelsaygisever.transfer.domain.enums.EventType;
 import com.minelsaygisever.transfer.domain.enums.OutboxStatus;
 import com.minelsaygisever.transfer.dto.TransferApiRequest;
+import com.minelsaygisever.transfer.dto.TransferCommand;
 import com.minelsaygisever.transfer.dto.TransferResponse;
 import com.minelsaygisever.transfer.dto.event.TransferInitiatedEvent;
 import com.minelsaygisever.transfer.repository.OutboxRepository;
 import com.minelsaygisever.transfer.repository.TransferRepository;
+import com.minelsaygisever.transfer.util.IdempotencyHasher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
@@ -129,7 +132,23 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("Idempotency: Same Key should return Same Response (No Error)")
+    @DisplayName("Hasher: should throw when amount has >2 decimals")
+    void shouldThrow_WhenAmountScaleIsGreaterThan2() {
+        TransferCommand cmd = new TransferCommand(
+                "key",
+                "1",
+                "2",
+                new BigDecimal("10.123"),
+                "try"
+        );
+
+        assertThatThrownBy(() -> IdempotencyHasher.hash(cmd))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at most 2 decimal places");
+    }
+
+    @Test
+    @DisplayName("Idempotency: Same Key same payload should return Same Response (No Error)")
     void shouldReturnSameResponse_WhenIdempotencyKeyIsSame() {
         String idempotencyKey = UUID.randomUUID().toString();
         TransferApiRequest request = new TransferApiRequest(
@@ -170,6 +189,60 @@ class TransferIntegrationTest {
 
         StepVerifier.create(outboxRepository.count())
                 .expectNext(1L)
+                .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("Idempotency Hardening: Same key with DIFFERENT payload -> 409 Conflict (Key Reuse)")
+    void shouldReturn409_WhenSameIdempotencyKeyUsedWithDifferentPayload() {
+        String idempotencyKey = UUID.randomUUID().toString();
+
+        // 1) First request (OK)
+        TransferApiRequest first = new TransferApiRequest(
+                "1", "2", new BigDecimal("50.00"), "USD"
+        );
+
+        TransferResponse firstResponse = webTestClient.post()
+                .uri("/api/v1/transfers")
+                .header("x-idempotency-key", idempotencyKey)
+                .bodyValue(first)
+                .exchange()
+                .expectStatus().isOk()
+                .returnResult(TransferResponse.class)
+                .getResponseBody()
+                .blockFirst();
+
+        assertThat(firstResponse).isNotNull();
+
+        // 2) Same key but DIFFERENT payload (amount changed -> must be 409)
+        TransferApiRequest second = new TransferApiRequest(
+                "1", "2", new BigDecimal("60.00"), "USD" // <-- changed amount
+        );
+
+        webTestClient.post()
+                .uri("/api/v1/transfers")
+                .header("x-idempotency-key", idempotencyKey)
+                .bodyValue(second)
+                .exchange()
+                .expectStatus().isEqualTo(409)
+                .expectBody()
+                .jsonPath("$.error").isEqualTo("IDEMPOTENCY_KEY_REUSE");
+
+        // 3) DB must still have only 1 transfer + 1 outbox
+        StepVerifier.create(transferRepository.count())
+                .expectNext(1L)
+                .verifyComplete();
+
+        StepVerifier.create(outboxRepository.count())
+                .expectNext(1L)
+                .verifyComplete();
+
+        // (Optional) Ensure the stored transfer is still the original one
+        StepVerifier.create(transferRepository.findByIdempotencyKey(idempotencyKey))
+                .expectNextMatches(t ->
+                        t.getAmount().compareTo(new BigDecimal("50.00")) == 0 &&
+                                "USD".equalsIgnoreCase(t.getCurrency())
+                )
                 .verifyComplete();
     }
 

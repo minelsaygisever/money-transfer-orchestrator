@@ -6,12 +6,15 @@ CREATE TABLE IF NOT EXISTS transfers (
     receiver_account_id VARCHAR(255) NOT NULL,
     amount DECIMAL(19, 2) NOT NULL,
     currency VARCHAR(3) NOT NULL,
+    request_hash VARCHAR(64) NOT NULL,
     state VARCHAR(20) NOT NULL,
     failure_reason VARCHAR(255),
     version BIGINT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_transfers_idempotency_key ON transfers (idempotency_key);
 
 CREATE TABLE IF NOT EXISTS outbox (
     id SERIAL PRIMARY KEY,

@@ -1,10 +1,7 @@
 package com.minelsaygisever.transfer.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 
@@ -20,6 +17,7 @@ public record TransferApiRequest(
         @Schema(description = "Amount to transfer", example = "100.00")
         @NotNull(message = "Amount is required")
         @DecimalMin(value = "0.01", message = "Transfer amount must be greater than zero")
+        @Digits(integer = 17, fraction = 2, message = "Amount must have max 2 decimal places")
         BigDecimal amount,
 
         @Schema(description = "Currency code", example = "TRY")

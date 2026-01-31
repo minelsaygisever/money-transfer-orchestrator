@@ -13,9 +13,11 @@ import com.minelsaygisever.transfer.dto.TransferCommand;
 import com.minelsaygisever.transfer.dto.TransferResponse;
 import com.minelsaygisever.transfer.dto.event.TransferInitiatedEvent;
 import com.minelsaygisever.transfer.exception.EventSerializationException;
+import com.minelsaygisever.transfer.exception.IdempotencyKeyReuseException;
 import com.minelsaygisever.transfer.exception.TransferProcessInProgressException;
 import com.minelsaygisever.transfer.repository.OutboxRepository;
 import com.minelsaygisever.transfer.repository.TransferRepository;
+import com.minelsaygisever.transfer.util.IdempotencyHasher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
@@ -48,16 +50,20 @@ public class TransferService {
                         return processNewTransfer(request, lockKey);
                     } else {
                         log.info("Duplicate request intercepted by Redis: {}", request.idempotencyKey());
-                        return handleDuplicateRequest(request.idempotencyKey());
+                        return handleDuplicateRequest(request);
                     }
                 });
     }
 
     private Mono<TransferResponse> processNewTransfer(TransferCommand request, String lockKey) {
         // check if it exists in the database.
+        String incomingHash = IdempotencyHasher.hash(request);
+
         return transferRepository.findByIdempotencyKey(request.idempotencyKey())
                 .flatMap(existing -> {
-                    log.info("Idempotency hit in DB: {}", request.idempotencyKey());
+                    if (!existing.getRequestHash().equals(incomingHash)) {
+                        return Mono.error(new IdempotencyKeyReuseException(request.idempotencyKey()));
+                    }
                     return Mono.just(mapToResponse(existing));
                 })
                 .switchIfEmpty(Mono.defer(() -> createTransfer(request, lockKey)));
@@ -66,9 +72,11 @@ public class TransferService {
     private Mono<TransferResponse> createTransfer(TransferCommand request, String lockKey) {
         String normalizedCurrency = request.currency().toUpperCase();
         UUID transactionId = UUID.randomUUID();
+        String requestHash = IdempotencyHasher.hash(request);
 
         Transfer transfer = Transfer.builder()
                 .idempotencyKey(request.idempotencyKey())
+                .requestHash(requestHash)
                 .transactionId(transactionId)
                 .senderAccountId(request.senderAccountId())
                 .receiverAccountId(request.receiverAccountId())
@@ -120,10 +128,18 @@ public class TransferService {
         }
     }
 
-    private Mono<TransferResponse> handleDuplicateRequest(String idempotencyKey) {
-        return transferRepository.findByIdempotencyKey(idempotencyKey)
-                .map(this::mapToResponse)
-                .switchIfEmpty(Mono.error(new TransferProcessInProgressException(idempotencyKey)));
+    private Mono<TransferResponse> handleDuplicateRequest(TransferCommand request) {
+        String incomingHash = IdempotencyHasher.hash(request);
+
+        return transferRepository.findByIdempotencyKey(request.idempotencyKey())
+                .flatMap(existing -> {
+                    // same key + different payload => 409
+                    if (!incomingHash.equals(existing.getRequestHash())) {
+                        return Mono.error(new IdempotencyKeyReuseException(request.idempotencyKey()));
+                    }
+                    return Mono.just(mapToResponse(existing));
+                })
+                .switchIfEmpty(Mono.error(new TransferProcessInProgressException(request.idempotencyKey())));
     }
 
     private TransferResponse mapToResponse(Transfer transfer) {
