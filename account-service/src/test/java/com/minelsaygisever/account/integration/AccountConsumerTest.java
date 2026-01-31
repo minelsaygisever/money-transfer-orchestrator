@@ -36,7 +36,7 @@ import static org.awaitility.Awaitility.await;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @Import(TestChannelBinderConfiguration.class)
-@TestPropertySource(properties = "banking.account.outbox.polling-interval=3600000")
+@TestPropertySource(properties = "account.outbox.polling-interval=3600000")
 class AccountConsumerTest {
 
     @Container

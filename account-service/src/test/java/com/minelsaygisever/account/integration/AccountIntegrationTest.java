@@ -24,7 +24,7 @@ import java.util.Objects;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @Import(TestChannelBinderConfiguration.class)
-@TestPropertySource(properties = "banking.account.outbox.polling-interval=3600000")
+@TestPropertySource(properties = "account.outbox.polling-interval=3600000")
 public class AccountIntegrationTest {
 
     @Container

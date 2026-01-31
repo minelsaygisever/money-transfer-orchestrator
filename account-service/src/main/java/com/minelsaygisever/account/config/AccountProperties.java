@@ -9,7 +9,7 @@ import org.springframework.validation.annotation.Validated;
 import java.math.BigDecimal;
 import java.time.Duration;
 
-@ConfigurationProperties(prefix = "banking.account")
+@ConfigurationProperties(prefix = "account")
 @Validated
 public record AccountProperties(
 

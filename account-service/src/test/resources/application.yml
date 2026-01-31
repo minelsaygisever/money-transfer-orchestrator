@@ -1,13 +1,13 @@
 spring:
   sql:
     init:
-      mode: always
+      mode: never
   application:
     name: account-service-test
 logging:
   level:
     org.springframework.r2dbc: DEBUG
-banking:
-  account:
-    default-daily-limit: 5000.00
-    default-currency: TRY
+
+account:
+  default-daily-limit: 5000.00
+  default-currency: TRY

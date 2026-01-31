@@ -60,12 +60,7 @@ public class TransferService {
         String incomingHash = IdempotencyHasher.hash(request);
 
         return transferRepository.findByIdempotencyKey(request.idempotencyKey())
-                .flatMap(existing -> {
-                    if (!existing.getRequestHash().equals(incomingHash)) {
-                        return Mono.error(new IdempotencyKeyReuseException(request.idempotencyKey()));
-                    }
-                    return Mono.just(mapToResponse(existing));
-                })
+                .flatMap(existing -> validateAndMapExisting(existing, incomingHash))
                 .switchIfEmpty(Mono.defer(() -> createTransfer(request, lockKey)));
     }
 
@@ -132,13 +127,7 @@ public class TransferService {
         String incomingHash = IdempotencyHasher.hash(request);
 
         return transferRepository.findByIdempotencyKey(request.idempotencyKey())
-                .flatMap(existing -> {
-                    // same key + different payload => 409
-                    if (!incomingHash.equals(existing.getRequestHash())) {
-                        return Mono.error(new IdempotencyKeyReuseException(request.idempotencyKey()));
-                    }
-                    return Mono.just(mapToResponse(existing));
-                })
+                .flatMap(existing ->  validateAndMapExisting(existing, incomingHash))
                 .switchIfEmpty(Mono.error(new TransferProcessInProgressException(request.idempotencyKey())));
     }
 
@@ -149,4 +138,15 @@ public class TransferService {
                 transfer.getCreatedAt()
         );
     }
+
+    private Mono<TransferResponse> validateAndMapExisting(Transfer existing, String incomingHash) {
+        String storedHash = existing.getRequestHash();
+
+        // same key + different payload (or corrupted row) => 409
+        if (storedHash == null || !storedHash.equals(incomingHash)) {
+            return Mono.error(new IdempotencyKeyReuseException(existing.getIdempotencyKey()));
+        }
+        return Mono.just(mapToResponse(existing));
+    }
+
 }
