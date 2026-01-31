@@ -12,10 +12,10 @@ import java.util.UUID;
 public interface ProcessedTransactionRepository extends R2dbcRepository<ProcessedTransaction, UUID> {
 
     @Query("""
-        INSERT INTO processed_transactions(transaction_id)
-        VALUES (:transactionId)
-        ON CONFLICT (transaction_id) DO NOTHING
+        INSERT INTO processed_transactions(transaction_id, operation_type)
+        VALUES (:transactionId, :operationType)
+        ON CONFLICT (transaction_id, operation_type) DO NOTHING
         RETURNING transaction_id
     """)
-    Mono<UUID> tryInsert(UUID transactionId);
+    Mono<UUID> tryInsert(UUID transactionId, String operationType);
 }

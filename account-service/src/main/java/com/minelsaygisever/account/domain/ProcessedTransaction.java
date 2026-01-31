@@ -1,5 +1,6 @@
 package com.minelsaygisever.account.domain;
 
+import com.minelsaygisever.account.domain.enums.OperationType;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
@@ -20,6 +21,9 @@ public class ProcessedTransaction {
     @Id
     @Column("transaction_id")
     private UUID transactionId;
+
+    @Column("operation_type")
+    private OperationType operationType;
 
     @Column("processed_at")
     private LocalDateTime processedAt;

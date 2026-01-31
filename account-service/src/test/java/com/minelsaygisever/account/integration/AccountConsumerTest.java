@@ -113,4 +113,46 @@ class AccountConsumerTest {
             assertThat(outboxItem.getPayload()).contains(transactionId.toString());
         });
     }
+
+    @Test
+    @DisplayName("Idempotency: Same Event Twice -> Balance Decreased ONCE")
+    void shouldHandleDuplicateEvents_Idempotently() {
+        // 1. ARRANGE
+        Account account = accountRepository.save(Account.builder()
+                .customerId("IDEM-USER")
+                .balance(new BigDecimal("1000.00"))
+                .currency("TRY")
+                .status(AccountStatus.ACTIVE)
+                .build()).block();
+
+        Long accountId = account.getId();
+        UUID transactionId = UUID.randomUUID();
+
+        TransferInitiatedEvent event = new TransferInitiatedEvent(
+                transactionId,
+                String.valueOf(accountId),
+                "receiver-id",
+                new BigDecimal("100.00"),
+                "TRY"
+        );
+
+        // 2. ACT - Send First Time
+        inputDestination.send(MessageBuilder.withPayload(event).build(), "processTransferInit-in-0");
+
+        // Wait for processing
+        await().atMost(5, SECONDS).untilAsserted(() -> {
+            Account updated = accountRepository.findById(accountId).block();
+            assertThat(updated.getBalance()).isEqualByComparingTo(new BigDecimal("900.00"));
+        });
+
+        // 3. ACT - Send SAME Event Second Time
+        inputDestination.send(MessageBuilder.withPayload(event).build(), "processTransferInit-in-0");
+
+        // 4. ASSERT - Balance should NOT change (Still 900, not 800)
+        try { Thread.sleep(1000); } catch (InterruptedException e) {}
+
+        Account finalAccount = accountRepository.findById(accountId).block();
+        Assertions.assertNotNull(finalAccount);
+        assertThat(finalAccount.getBalance()).isEqualByComparingTo(new BigDecimal("900.00"));
+    }
 }

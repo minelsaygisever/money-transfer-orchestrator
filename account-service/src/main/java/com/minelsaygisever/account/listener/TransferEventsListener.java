@@ -19,8 +19,6 @@ public class TransferEventsListener {
 
     @Bean
     public Consumer<TransferInitiatedEvent> processTransferInit() {
-        // TODO: Idempotent Consumer - Processed Transactions
-
         return event -> {
             log.info("EVENT RECEIVED: Transfer Initiated for Transaction ID: {}", event.transactionId());
 

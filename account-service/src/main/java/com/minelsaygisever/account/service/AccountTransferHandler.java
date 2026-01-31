@@ -5,15 +5,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minelsaygisever.account.domain.Outbox;
 import com.minelsaygisever.account.domain.enums.AggregateType;
 import com.minelsaygisever.account.domain.enums.EventType;
+import com.minelsaygisever.account.domain.enums.OperationType;
 import com.minelsaygisever.account.domain.enums.OutboxStatus;
 import com.minelsaygisever.account.dto.event.AccountDebitFailedEvent;
 import com.minelsaygisever.account.dto.event.AccountDebitedEvent;
 import com.minelsaygisever.account.dto.event.TransferInitiatedEvent;
+import com.minelsaygisever.account.exception.AccountNotActiveException;
+import com.minelsaygisever.account.exception.AccountNotFoundException;
+import com.minelsaygisever.account.exception.DailyLimitExceededException;
+import com.minelsaygisever.account.exception.InsufficientBalanceException;
 import com.minelsaygisever.account.repository.OutboxRepository;
+import com.minelsaygisever.account.repository.ProcessedTransactionRepository;
+import com.minelsaygisever.common.exception.CurrencyMismatchException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -23,15 +30,39 @@ public class AccountTransferHandler {
 
     private final AccountService accountService;
     private final OutboxRepository outboxRepository;
+    private final ProcessedTransactionRepository processedTransactionRepository;
     private final ObjectMapper objectMapper;
+    private final TransactionalOperator txOp;
 
-    @Transactional
     public Mono<Void> handleDebit(TransferInitiatedEvent event) {
-        return accountService.withdraw(event.senderAccountId(), event.amount(), event.currency())
+        return processedTransactionRepository.tryInsert(event.transactionId(), OperationType.DEBIT.name())
+                .hasElement()
+                .flatMap(inserted -> {
+                    if (Boolean.TRUE.equals(inserted)) {
+                        return processTransfer(event);
+                    } else {
+                        log.info("DUPLICATE DEBIT EVENT IGNORED: tx={}", event.transactionId());
+                        return Mono.empty();
+                    }
+                })
+                .as(txOp::transactional);
+    }
+
+    private Mono<Void> processTransfer(TransferInitiatedEvent event) {
+        log.info("Processing NEW transfer transaction: {}", event.transactionId());
+
+        return accountService.withdraw(
+                        event.senderAccountId(),
+                        event.amount(),
+                        event.currency()
+                )
                 .then(saveDebitSuccessEvent(event))
                 .onErrorResume(ex -> {
-                    log.warn("Debit failed for tx: {}. Reason: {}", event.transactionId(), ex.getMessage());
-                    return saveDebitFailureEvent(event, ex.getMessage());
+                    if (isBusinessError(ex)) {
+                        log.warn("Business Validation Failed for tx: {}. Reason: {}", event.transactionId(), ex.getMessage());
+                        return saveDebitFailureEvent(event, ex.getMessage());
+                    }
+                    return Mono.error(ex);
                 })
                 .then();
     }
@@ -75,5 +106,13 @@ public class AccountTransferHandler {
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Serialization error", e);
         }
+    }
+
+    private boolean isBusinessError(Throwable ex) {
+        return ex instanceof InsufficientBalanceException ||
+                ex instanceof AccountNotFoundException ||
+                ex instanceof AccountNotActiveException ||
+                ex instanceof DailyLimitExceededException ||
+                ex instanceof CurrencyMismatchException;
     }
 }
