@@ -6,6 +6,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.annotation.Version;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
@@ -22,29 +23,38 @@ import java.util.Objects;
 public class Account {
 
     @Id
+    @Column("id")
     private Long id;
 
     @NonNull
+    @Column("customer_id")
     private String customerId;
 
     @NonNull
+    @Column("balance")
     private BigDecimal balance;
 
     @NonNull
+    @Column("currency")
     private String currency;
 
     @NonNull
+    @Column("status")
     private AccountStatus status;
 
+    @Column("daily_limit")
     private BigDecimal dailyLimit;
 
     @Version
+    @Column("version")
     private Long version;
 
     @CreatedDate
+    @Column("created_at")
     private LocalDateTime createdAt;
 
     @LastModifiedDate
+    @Column("updated_at")
     private LocalDateTime updatedAt;
 
     @Override
