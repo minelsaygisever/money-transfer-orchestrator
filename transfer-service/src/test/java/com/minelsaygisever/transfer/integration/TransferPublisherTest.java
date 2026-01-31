@@ -37,7 +37,7 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
-@TestPropertySource(properties = "transfer.outbox-polling-interval=3600000")
+@TestPropertySource(properties = "transfer.outbox.polling-interval=3600000")
 class TransferPublisherTest {
 
     @Container

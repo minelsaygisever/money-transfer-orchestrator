@@ -20,7 +20,7 @@ spring:
           destination: transfer-events-dlq
 
   r2dbc:
-    url: r2dbc:postgresql://localhost:5432/banking_core
+    url: r2dbc:postgresql://localhost:5432/transfer_db
     username: admin
     password: password
     pool:
