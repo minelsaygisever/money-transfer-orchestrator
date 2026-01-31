@@ -38,7 +38,6 @@ import static org.mockito.Mockito.*;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @Import(TestChannelBinderConfiguration.class)
-@TestPropertySource(properties = "account.outbox.polling-interval=3600000")
 class AccountPublisherTest {
 
     @Container

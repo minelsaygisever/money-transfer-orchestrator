@@ -6,22 +6,27 @@ spring:
     name: account-service
 
   cloud:
+    function:
+      definition: transferInitiated;transferDepositRequested;transferRefundRequested
+
     stream:
       kafka:
         binder:
           brokers: ${SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS:localhost:9092}
           auto-create-topics: true
 
-      function:
-        definition: processTransferInit
-
       bindings:
-        processTransferInit-in-0:
-          destination: transfer-events
-          group: account-service-group
+        transferInitiated-in-0:
+          destination: transfer-debit-events
+          group: account-service-debit-group
           consumer:
             max-attempts: 3
-            back-off-initial-interval: 1000
+        transferDepositRequested-in-0:
+          destination: transfer-credit-events
+          group: account-service-credit-group
+        transferRefundRequested-in-0:
+          destination: transfer-refund-events
+          group: account-service-refund-group
         account-out-0:
           destination: account-events
           producer:

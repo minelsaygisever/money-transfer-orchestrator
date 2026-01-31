@@ -13,7 +13,7 @@ spring:
           auto-create-topics: true
       bindings:
         transfer-out-0:
-          destination: transfer-events
+          destination: transfer-debit-events
           producer:
             partition-key-expression: headers['partitionKey']
         transfer-dlq-0:
