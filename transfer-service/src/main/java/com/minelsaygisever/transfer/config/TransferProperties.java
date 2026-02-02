@@ -17,15 +17,15 @@ public record TransferProperties(
         OutboxProperties outbox,
 
         @DefaultValue
-        BackoffProperties backoff
+        BackoffProperties backoff,
+
+        @DefaultValue
+        BindingProperties bindings
 ) {
 
     public record OutboxProperties(
             @DefaultValue("10")
             Integer batchSize,
-
-            @DefaultValue("transfer-out-0")
-            String bindingName,
 
             @DefaultValue("transfer-dlq-0")
             String dlqBindingName,
@@ -46,5 +46,16 @@ public record TransferProperties(
 
             @DefaultValue("2.0")
             Double multiplier
+    ) {}
+
+    public record BindingProperties(
+            @DefaultValue("transfer-debit-out-0")
+            String debit,
+
+            @DefaultValue("transfer-credit-out-0")
+            String credit,
+
+            @DefaultValue("transfer-refund-out-0")
+            String refund
     ) {}
 }

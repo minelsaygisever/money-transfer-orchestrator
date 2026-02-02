@@ -1,7 +1,7 @@
 package com.minelsaygisever.transfer.domain;
 
+import com.minelsaygisever.common.domain.enums.EventType;
 import com.minelsaygisever.transfer.domain.enums.AggregateType;
-import com.minelsaygisever.transfer.domain.enums.EventType;
 import com.minelsaygisever.transfer.domain.enums.OutboxStatus;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -23,6 +23,7 @@ import java.util.Objects;
 public class Outbox {
 
     @Id
+    @Column("id")
     private Long id;
 
     @Column("aggregate_type")

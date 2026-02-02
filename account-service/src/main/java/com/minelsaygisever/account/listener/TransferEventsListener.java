@@ -1,8 +1,8 @@
 package com.minelsaygisever.account.listener;
 
-import com.minelsaygisever.account.dto.event.credit.TransferDepositRequestedEvent;
-import com.minelsaygisever.account.dto.event.debit.TransferInitiatedEvent;
-import com.minelsaygisever.account.dto.event.refund.TransferRefundRequestedEvent;
+import com.minelsaygisever.common.event.credit.TransferDepositRequestedEvent;
+import com.minelsaygisever.common.event.debit.TransferInitiatedEvent;
+import com.minelsaygisever.common.event.refund.TransferRefundRequestedEvent;
 import com.minelsaygisever.account.service.handler.TransferCreditHandler;
 import com.minelsaygisever.account.service.handler.TransferDebitHandler;
 import com.minelsaygisever.account.service.handler.TransferRefundHandler;

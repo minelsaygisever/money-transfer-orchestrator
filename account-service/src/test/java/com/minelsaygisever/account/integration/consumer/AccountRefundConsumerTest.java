@@ -2,8 +2,8 @@ package com.minelsaygisever.account.integration.consumer;
 
 import com.minelsaygisever.account.domain.Account;
 import com.minelsaygisever.account.domain.enums.AccountStatus;
-import com.minelsaygisever.account.domain.enums.EventType;
-import com.minelsaygisever.account.dto.event.refund.TransferRefundRequestedEvent;
+import com.minelsaygisever.common.domain.enums.EventType;
+import com.minelsaygisever.common.event.refund.TransferRefundRequestedEvent;
 import com.minelsaygisever.account.repository.AccountRepository;
 import com.minelsaygisever.account.repository.OutboxRepository;
 import lombok.SneakyThrows;

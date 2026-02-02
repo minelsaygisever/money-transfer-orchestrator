@@ -1,11 +1,11 @@
-package com.minelsaygisever.account.dto.event.debit;
+package com.minelsaygisever.common.event.credit;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public record AccountDebitedEvent(
+public record AccountCreditedEvent(
         UUID transactionId,
-        String senderAccountId,
+        String receiverAccountId,
         BigDecimal amount,
         String currency
 ) {}

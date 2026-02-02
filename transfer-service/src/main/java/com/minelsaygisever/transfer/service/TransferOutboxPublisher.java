@@ -1,8 +1,10 @@
 package com.minelsaygisever.transfer.service;
 
+import com.minelsaygisever.common.domain.enums.EventType;
 import com.minelsaygisever.transfer.config.TransferProperties;
 import com.minelsaygisever.transfer.domain.Outbox;
 import com.minelsaygisever.transfer.domain.enums.OutboxStatus;
+import com.minelsaygisever.transfer.exception.EventBindingMappingException;
 import com.minelsaygisever.transfer.exception.EventPublishingException;
 import com.minelsaygisever.transfer.repository.OutboxRepository;
 import lombok.RequiredArgsConstructor;
@@ -49,22 +51,34 @@ public class TransferOutboxPublisher {
 
     private Mono<Outbox> publishEvent(Outbox outbox) {
         return Mono.fromCallable(() -> {
-                    log.info("Publishing event to Kafka. ID: {} Type: {}", outbox.getId(), outbox.getType());
+            log.info("Publishing event to Kafka. ID: {} Type: {}", outbox.getId(), outbox.getType());
 
-                    Message<String> message = MessageBuilder
-                            .withPayload(outbox.getPayload())
-                            .setHeader("partitionKey", outbox.getAggregateId())
-                            .build();
+            String bindingName = resolveBindingName(outbox.getType());
 
-                    boolean sent = streamBridge.send(properties.outbox().bindingName(), message);
+            Message<String> message = MessageBuilder
+                    .withPayload(outbox.getPayload())
+                    .setHeader("partitionKey", outbox.getAggregateId())
+                    .build();
 
-                    if (!sent) {
-                        throw new EventPublishingException("StreamBridge failed to send event for Outbox ID: " + outbox.getId());
-                    }
-                    return true;
-                })
-                .flatMap(success -> handleSuccess(outbox))
-                .onErrorResume(e -> handleFailure(outbox, e));
+            boolean sent = streamBridge.send(bindingName, message);
+
+            if (!sent) {
+                throw new EventPublishingException("StreamBridge failed to send event for Outbox ID: " + outbox.getId());
+            }
+            return true;
+        })
+        .flatMap(success -> handleSuccess(outbox))
+        .onErrorResume(e -> handleFailure(outbox, e));
+    }
+
+    private String resolveBindingName(EventType eventType) {
+        return switch (eventType) {
+            case TRANSFER_INITIATED -> properties.bindings().debit();
+            case TRANSFER_DEPOSIT_REQUESTED -> properties.bindings().credit();
+            case TRANSFER_REFUND_REQUESTED -> properties.bindings().refund();
+
+            default -> throw new EventBindingMappingException("No binding defined for event type: " + eventType);
+        };
     }
 
     private Mono<Outbox> handleSuccess(Outbox outbox) {

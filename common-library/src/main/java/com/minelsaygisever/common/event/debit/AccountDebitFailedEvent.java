@@ -1,11 +1,12 @@
-package com.minelsaygisever.account.dto.event.refund;
+package com.minelsaygisever.common.event.debit;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public record AccountRefundedEvent(
+public record AccountDebitFailedEvent(
         UUID transactionId,
         String senderAccountId,
         BigDecimal amount,
-        String currency
+        String currency,
+        String reason
 ) {}

@@ -3,7 +3,7 @@ package com.minelsaygisever.account.integration;
 import com.minelsaygisever.account.config.AccountProperties;
 import com.minelsaygisever.account.domain.Outbox;
 import com.minelsaygisever.account.domain.enums.AggregateType;
-import com.minelsaygisever.account.domain.enums.EventType;
+import com.minelsaygisever.common.domain.enums.EventType;
 import com.minelsaygisever.account.domain.enums.OutboxStatus;
 import com.minelsaygisever.account.repository.OutboxRepository;
 import com.minelsaygisever.account.service.AccountOutboxPublisher;
@@ -19,7 +19,6 @@ import org.springframework.cloud.stream.binder.test.TestChannelBinderConfigurati
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.context.annotation.Import;
 import org.springframework.messaging.Message;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.testcontainers.containers.GenericContainer;

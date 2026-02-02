@@ -1,4 +1,4 @@
-package com.minelsaygisever.account.dto.event.refund;
+package com.minelsaygisever.common.event.refund;
 
 import java.math.BigDecimal;
 import java.util.UUID;

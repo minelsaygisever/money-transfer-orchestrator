@@ -1,7 +1,7 @@
 package com.minelsaygisever.account.domain;
 
 import com.minelsaygisever.account.domain.enums.AggregateType;
-import com.minelsaygisever.account.domain.enums.EventType;
+import com.minelsaygisever.common.domain.enums.EventType;
 import com.minelsaygisever.account.domain.enums.OutboxStatus;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;

@@ -1,9 +1,9 @@
 package com.minelsaygisever.transfer.integration;
 
+import com.minelsaygisever.common.domain.enums.EventType;
 import com.minelsaygisever.transfer.config.TransferProperties;
 import com.minelsaygisever.transfer.domain.Outbox;
 import com.minelsaygisever.transfer.domain.enums.AggregateType;
-import com.minelsaygisever.transfer.domain.enums.EventType;
 import com.minelsaygisever.transfer.domain.enums.OutboxStatus;
 import com.minelsaygisever.transfer.repository.OutboxRepository;
 import com.minelsaygisever.transfer.service.TransferOutboxPublisher;
@@ -94,7 +94,7 @@ class TransferPublisherTest {
                 .build();
         outboxRepository.save(outbox).block();
 
-        when(streamBridge.send(eq(properties.outbox().bindingName()), any(Message.class))).thenReturn(true);
+        when(streamBridge.send(eq(properties.bindings().debit()), any(Message.class))).thenReturn(true);
 
         // 2. ACT
         StepVerifier.create(publisher.processOutbox().as(transactionalOperator::transactional))
@@ -102,7 +102,7 @@ class TransferPublisherTest {
                 .verifyComplete();
 
         // 3. ASSERT
-        verify(streamBridge).send(eq(properties.outbox().bindingName()), messageCaptor.capture());
+        verify(streamBridge).send(eq(properties.bindings().debit()), messageCaptor.capture());
 
         Message<String> sentMessage = messageCaptor.getValue();
         assertThat(sentMessage.getHeaders().get("partitionKey"))
@@ -129,7 +129,7 @@ class TransferPublisherTest {
                 .build();
         outboxRepository.save(outbox).block();
 
-        when(streamBridge.send(eq(properties.outbox().bindingName()), any(Message.class))).thenReturn(false);
+        when(streamBridge.send(eq(properties.bindings().debit()), any(Message.class))).thenReturn(false);
 
         // 2. ACT
         StepVerifier.create(publisher.processOutbox())
@@ -195,7 +195,7 @@ class TransferPublisherTest {
                 .build();
         outboxRepository.save(outbox).block();
 
-        when(streamBridge.send(eq(properties.outbox().bindingName()), any(Message.class)))
+        when(streamBridge.send(eq(properties.bindings().debit()), any(Message.class)))
                 .thenAnswer(invocation -> {
                     Thread.sleep(500);
                     return true;
@@ -217,6 +217,6 @@ class TransferPublisherTest {
 
         // 3. ASSERT
         // Kafka must have only been visited once
-        verify(streamBridge, times(1)).send(eq(properties.outbox().bindingName()), any(Message.class));
+        verify(streamBridge, times(1)).send(eq(properties.bindings().debit()), any(Message.class));
     }
 }

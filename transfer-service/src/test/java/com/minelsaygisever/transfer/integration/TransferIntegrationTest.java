@@ -1,13 +1,13 @@
 package com.minelsaygisever.transfer.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.minelsaygisever.common.domain.enums.EventType;
+import com.minelsaygisever.common.event.debit.TransferInitiatedEvent;
 import com.minelsaygisever.transfer.domain.enums.AggregateType;
-import com.minelsaygisever.transfer.domain.enums.EventType;
 import com.minelsaygisever.transfer.domain.enums.OutboxStatus;
 import com.minelsaygisever.transfer.dto.TransferApiRequest;
 import com.minelsaygisever.transfer.dto.TransferCommand;
 import com.minelsaygisever.transfer.dto.TransferResponse;
-import com.minelsaygisever.transfer.dto.event.TransferInitiatedEvent;
 import com.minelsaygisever.transfer.repository.OutboxRepository;
 import com.minelsaygisever.transfer.repository.TransferRepository;
 import com.minelsaygisever.transfer.util.IdempotencyHasher;

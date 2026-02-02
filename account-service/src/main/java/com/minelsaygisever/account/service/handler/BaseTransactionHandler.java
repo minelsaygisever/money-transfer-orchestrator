@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minelsaygisever.account.domain.Outbox;
 import com.minelsaygisever.account.domain.enums.AggregateType;
-import com.minelsaygisever.account.domain.enums.EventType;
+import com.minelsaygisever.common.domain.enums.EventType;
 import com.minelsaygisever.account.domain.enums.OutboxStatus;
 import com.minelsaygisever.account.exception.AccountNotActiveException;
 import com.minelsaygisever.account.exception.AccountNotFoundException;

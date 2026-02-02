@@ -6,16 +6,37 @@ spring:
     name: transfer-service
 
   cloud:
+    function:
+      definition: onAccountEvent
+
     stream:
       kafka:
         binder:
           brokers: localhost:9092
           auto-create-topics: true
       bindings:
-        transfer-out-0:
+        transfer-debit-out-0:
           destination: transfer-debit-events
           producer:
             partition-key-expression: headers['partitionKey']
+
+        transfer-credit-out-0:
+          destination: transfer-credit-events
+          producer:
+            partition-key-expression: headers['partitionKey']
+
+        transfer-refund-out-0:
+          destination: transfer-refund-events
+          producer:
+            partition-key-expression: headers['partitionKey']
+
+        onAccountEvent-in-0:
+          destination: account-events
+          group: transfer-saga-group
+          consumer:
+            max-attempts: 3
+            back-off-initial-interval: 1000
+
         transfer-dlq-0:
           destination: transfer-events-dlq
 
@@ -39,9 +60,13 @@ spring:
 transfer:
   lock-timeout: 5m
 
+  bindings:
+    debit: transfer-debit-out-0
+    credit: transfer-credit-out-0
+    refund: transfer-refund-out-0
+
   outbox:
     batch-size: 20
-    binding-name: transfer-out-0
     dlq-binding-name: transfer-dlq-0
     polling-interval: 1000ms
     max-retries: 5

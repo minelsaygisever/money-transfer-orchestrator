@@ -2,11 +2,11 @@ package com.minelsaygisever.account.service.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minelsaygisever.account.domain.Outbox;
-import com.minelsaygisever.account.domain.enums.EventType;
+import com.minelsaygisever.common.domain.enums.EventType;
 import com.minelsaygisever.account.domain.enums.OperationType;
-import com.minelsaygisever.account.dto.event.credit.AccountCreditFailedEvent;
-import com.minelsaygisever.account.dto.event.credit.AccountCreditedEvent;
-import com.minelsaygisever.account.dto.event.credit.TransferDepositRequestedEvent;
+import com.minelsaygisever.common.event.credit.AccountCreditFailedEvent;
+import com.minelsaygisever.common.event.credit.AccountCreditedEvent;
+import com.minelsaygisever.common.event.credit.TransferDepositRequestedEvent;
 import com.minelsaygisever.account.repository.OutboxRepository;
 import com.minelsaygisever.account.repository.ProcessedTransactionRepository;
 import com.minelsaygisever.account.service.AccountService;

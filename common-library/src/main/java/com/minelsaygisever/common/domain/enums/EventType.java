@@ -1,4 +1,4 @@
-package com.minelsaygisever.account.domain.enums;
+package com.minelsaygisever.common.domain.enums;
 
 public enum EventType {
     // --- DEBIT ---

@@ -2,16 +2,16 @@ package com.minelsaygisever.transfer.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.minelsaygisever.common.domain.enums.EventType;
+import com.minelsaygisever.common.event.debit.TransferInitiatedEvent;
 import com.minelsaygisever.transfer.config.TransferProperties;
 import com.minelsaygisever.transfer.domain.Outbox;
 import com.minelsaygisever.transfer.domain.enums.AggregateType;
-import com.minelsaygisever.transfer.domain.enums.EventType;
 import com.minelsaygisever.transfer.domain.enums.OutboxStatus;
 import com.minelsaygisever.transfer.domain.Transfer;
 import com.minelsaygisever.transfer.domain.enums.TransferState;
 import com.minelsaygisever.transfer.dto.TransferCommand;
 import com.minelsaygisever.transfer.dto.TransferResponse;
-import com.minelsaygisever.transfer.dto.event.TransferInitiatedEvent;
 import com.minelsaygisever.transfer.exception.EventSerializationException;
 import com.minelsaygisever.transfer.exception.IdempotencyKeyReuseException;
 import com.minelsaygisever.transfer.exception.TransferProcessInProgressException;

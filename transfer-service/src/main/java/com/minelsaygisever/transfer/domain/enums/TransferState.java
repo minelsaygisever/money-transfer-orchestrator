@@ -2,8 +2,16 @@ package com.minelsaygisever.transfer.domain.enums;
 
 public enum TransferState {
     STARTED,
-    PENDING,
+
+    DEBITED,
+    DEBIT_FAILED,
+
+    DEPOSIT_INITIATED,
     COMPLETED,
-    FAILED,
-    REFUNDED
+
+    DEPOSIT_FAILED,
+
+    REFUND_INITIATED,
+    REFUNDED,
+    REFUND_FAILED
 }
