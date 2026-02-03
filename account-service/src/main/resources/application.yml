@@ -48,8 +48,11 @@ spring:
 
 logging:
   level:
-    org.springframework.r2dbc: DEBUG
-    io.r2dbc.postgresql: INFO
+    root: INFO
+    org.springframework.r2dbc: INFO
+    org.springframework.transaction: INFO
+    io.r2dbc: INFO
+    com.minelsaygisever: DEBUG
 
 
 account:

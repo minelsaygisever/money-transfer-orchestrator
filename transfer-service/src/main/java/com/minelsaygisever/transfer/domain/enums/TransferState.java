@@ -9,8 +9,6 @@ public enum TransferState {
     DEPOSIT_INITIATED,
     COMPLETED,
 
-    DEPOSIT_FAILED,
-
     REFUND_INITIATED,
     REFUNDED,
     REFUND_FAILED

@@ -14,6 +14,12 @@ spring:
         binder:
           brokers: localhost:9092
           auto-create-topics: true
+        bindings:
+          onAccountEvent-in-0:
+            consumer:
+              enable-dlq: true
+              dlq-name: transfer-service-saga-dlq
+              dlq-partitions: 1
       bindings:
         transfer-debit-out-0:
           destination: transfer-debit-events
@@ -30,6 +36,9 @@ spring:
           producer:
             partition-key-expression: headers['partitionKey']
 
+        transfer-dlq-0:
+          destination: transfer-events-dlq
+
         onAccountEvent-in-0:
           destination: account-events
           group: transfer-saga-group
@@ -37,8 +46,6 @@ spring:
             max-attempts: 3
             back-off-initial-interval: 1000
 
-        transfer-dlq-0:
-          destination: transfer-events-dlq
 
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/transfer_db

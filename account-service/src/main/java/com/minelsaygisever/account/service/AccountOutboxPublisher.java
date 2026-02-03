@@ -54,6 +54,7 @@ public class AccountOutboxPublisher {
                     Message<String> message = MessageBuilder
                             .withPayload(outbox.getPayload())
                             .setHeader("partitionKey", outbox.getAggregateId())
+                            .setHeader("eventType", outbox.getType().name())
                             .build();
 
                     boolean sent = streamBridge.send(properties.outbox().bindingName(), message);

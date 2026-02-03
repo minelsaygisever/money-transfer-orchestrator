@@ -1,21 +1,12 @@
 package com.minelsaygisever.transfer.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.minelsaygisever.common.domain.enums.EventType;
-import com.minelsaygisever.common.event.debit.TransferInitiatedEvent;
 import com.minelsaygisever.transfer.config.TransferProperties;
-import com.minelsaygisever.transfer.domain.Outbox;
-import com.minelsaygisever.transfer.domain.enums.AggregateType;
-import com.minelsaygisever.transfer.domain.enums.OutboxStatus;
 import com.minelsaygisever.transfer.domain.Transfer;
 import com.minelsaygisever.transfer.domain.enums.TransferState;
 import com.minelsaygisever.transfer.dto.TransferCommand;
 import com.minelsaygisever.transfer.dto.TransferResponse;
-import com.minelsaygisever.transfer.exception.EventSerializationException;
 import com.minelsaygisever.transfer.exception.IdempotencyKeyReuseException;
 import com.minelsaygisever.transfer.exception.TransferProcessInProgressException;
-import com.minelsaygisever.transfer.repository.OutboxRepository;
 import com.minelsaygisever.transfer.repository.TransferRepository;
 import com.minelsaygisever.transfer.util.IdempotencyHasher;
 import lombok.RequiredArgsConstructor;
@@ -33,10 +24,9 @@ import java.util.UUID;
 public class TransferService {
 
     private final TransferRepository transferRepository;
-    private final OutboxRepository outboxRepository;
     private final ReactiveRedisTemplate<String, Object> redisTemplate;
     private final TransferProperties properties;
-    private final ObjectMapper objectMapper;
+    private final TransferSagaOrchestrator sagaOrchestrator;
 
     @Transactional
     public Mono<TransferResponse> initiateTransfer(TransferCommand request) {
@@ -80,47 +70,14 @@ public class TransferService {
                 .state(TransferState.STARTED)
                 .build();
 
-        Outbox outbox = prepareOutboxEvent(transfer);
-
-        return transferRepository.save(transfer)
-                .flatMap(savedTransfer -> {
-                    log.info("Transfer saved. Saving to outbox... TxID: {}", savedTransfer.getTransactionId());
-                    return outboxRepository.save(outbox)
-                            .thenReturn(savedTransfer);
-                })
+        return sagaOrchestrator.initiateSaga(transfer)
                 .map(this::mapToResponse)
-                .doOnSuccess(t -> log.info("Transaction & Outbox committed successfully: {}", t.transactionId()))
+                .doOnSuccess(t -> log.info("Saga initiated successfully: {}", t.transactionId()))
                 .onErrorResume(e -> {
-                    log.error("DB Transaction failed. Releasing lock.", e);
+                    log.error("Saga initiation failed. Releasing lock.", e);
                     return redisTemplate.opsForValue().delete(lockKey)
                             .then(Mono.error(e));
                 });
-    }
-
-    private Outbox prepareOutboxEvent(Transfer transfer) {
-        try {
-            TransferInitiatedEvent event = new TransferInitiatedEvent(
-                    transfer.getTransactionId(),
-                    transfer.getSenderAccountId(),
-                    transfer.getReceiverAccountId(),
-                    transfer.getAmount(),
-                    transfer.getCurrency()
-            );
-
-            String payload = objectMapper.writeValueAsString(event);
-
-            return Outbox.builder()
-                    .aggregateType(AggregateType.TRANSFER)
-                    .aggregateId(transfer.getTransactionId().toString())
-                    .type(EventType.TRANSFER_INITIATED)
-                    .payload(payload)
-                    .status(OutboxStatus.PENDING)
-                    .retryCount(0)
-                    .build();
-
-        } catch (JsonProcessingException e) {
-            throw new EventSerializationException("Could not serialize event for transaction: " + transfer.getTransactionId(), e);
-        }
     }
 
     private Mono<TransferResponse> handleDuplicateRequest(TransferCommand request) {

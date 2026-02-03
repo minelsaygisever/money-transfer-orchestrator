@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS outbox (
 CREATE INDEX IF NOT EXISTS idx_outbox_poll ON outbox (status, next_attempt_time, id);
 CREATE INDEX IF NOT EXISTS idx_outbox_aggregate_id ON outbox (aggregate_id);
 
-CREATE TABLE processed_transactions (
+CREATE TABLE IF NOT EXISTS processed_transactions (
     transaction_id UUID NOT NULL,
     operation_type VARCHAR(50) NOT NULL, -- 'DEBIT', 'CREDIT', 'REFUND'
     processed_at TIMESTAMP NOT NULL DEFAULT NOW(),
