@@ -90,3 +90,7 @@ transfer:
     initial-delay: 1m
     max-delay: 60m
     multiplier: 2.0
+
+  reconciliation:
+    rate: 1m
+    timeout-threshold: 2m

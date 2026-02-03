@@ -150,6 +150,38 @@ public class TransferSagaOrchestrator {
                 .then();
     }
 
+    // --- STEP 4.5: TIMEOUT -> TRIGGER REFUND (AUTO-ROLLBACK) ---
+    public Mono<Void> handleTimeout(Transfer transfer) {
+        // Optimistic Locking & Race Condition Check
+        if (transfer.getState() != TransferState.DEBITED) {
+            log.info("Timeout handler triggered but state is {}. Skipping rollback. Tx: {}",
+                    transfer.getState(), transfer.getId());
+            return Mono.empty();
+        }
+
+        log.warn("Saga Timeout detected! Initiating COMPENSATING TRANSACTION (Refund). Tx: {}", transfer.getId());
+
+        transfer.setState(TransferState.REFUND_INITIATED);
+        transfer.setFailureReason("Saga Timeout: Receiver did not respond within threshold.");
+
+        var refundEvent = new TransferRefundRequestedEvent(
+                transfer.getTransactionId(),
+                transfer.getSenderAccountId(),
+                transfer.getAmount(),
+                transfer.getCurrency(),
+                "Rollback due to Saga Timeout"
+        );
+
+        return transferRepository.save(transfer)
+                .flatMap(savedTransfer -> saveOutbox(
+                        savedTransfer.getTransactionId(),
+                        EventType.TRANSFER_REFUND_REQUESTED,
+                        refundEvent)
+                )
+                .as(txOp::transactional)
+                .then();
+    }
+
     // --- STEP 5: REFUND SUCCESS -> FINISH WITH REFUNDED ---
     public Mono<Void> handleRefundSuccess(AccountRefundedEvent event) {
         return transferRepository.findByTransactionId(event.transactionId())

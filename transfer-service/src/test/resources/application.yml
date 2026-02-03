@@ -42,3 +42,8 @@ logging:
   level:
     org.springframework.cloud.stream: DEBUG
     com.minelsaygisever.transfer: DEBUG
+
+transfer:
+  reconciliation:
+    rate: 10h
+    timeout-threshold: 5m

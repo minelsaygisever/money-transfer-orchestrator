@@ -20,7 +20,10 @@ public record TransferProperties(
         BackoffProperties backoff,
 
         @DefaultValue
-        BindingProperties bindings
+        BindingProperties bindings,
+
+        @DefaultValue
+        ReconciliationProperties reconciliation
 ) {
 
     public record OutboxProperties(
@@ -57,5 +60,13 @@ public record TransferProperties(
 
             @DefaultValue("transfer-refund-out-0")
             String refund
+    ) {}
+
+    public record ReconciliationProperties(
+            @DefaultValue("1m")
+            Duration rate,
+
+            @DefaultValue("5m")
+            Duration timeoutThreshold
     ) {}
 }

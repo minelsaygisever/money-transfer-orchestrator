@@ -133,6 +133,10 @@ Duplicate requests and events are handled at three distinct layers to ensure **e
 * **Exponential Backoff:** Transient failures (e.g., temporary broker downtime) trigger retries with increasing delays.
 * **Dead Letter Queues (DLQ):** Messages that exceed the maximum retry count are automatically moved to a DLQ topic for manual inspection, preventing "poison pill" messages from blocking the consumption loop.
 
+### 4. Self-Healing (Saga Reconciliation)
+* **Stuck Transfer Scanner:** A background job detects transactions stuck in the `DEBITED` state due to missing downstream responses.
+* **Auto-Rollback:** Automatically triggers the **Compensation Flow** (refund) after a configurable timeout, preventing funds from being locked indefinitely.
+
 ---
 
 ## Getting Started
@@ -183,7 +187,6 @@ The project ensures reliability through a rigorous testing pyramid using Testcon
 
 The following features are planned to move the system towards **Enterprise-Grade** readiness and complete the observability goals:
 
-*  **Saga Reconciliation (Stuck Transfer Scanner):** A background job to detect transfers stuck in `DEBITED` state (Saga Timeouts) and automatically trigger a refund.
 * **Security (OAuth2 / OIDC):** Integrating **Keycloak** to secure public endpoints and manage user identities, ensuring only authorized users can initiate transfers.
 *  **Cloud-Native Deployment:** Migrating from Docker Compose to **Kubernetes** using **Helm Charts** to demonstrate scalable, production-ready deployment strategies.
 *  **Advanced Chaos Engineering:** Integrating **Toxiproxy** to simulate network latency and connection cuts between microservices.
