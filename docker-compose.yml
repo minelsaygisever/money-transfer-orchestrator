@@ -61,11 +61,14 @@ services:
         condition: service_healthy
       kafka:
         condition: service_started
+      zipkin:
+        condition: service_started
     environment:
       - SPRING_R2DBC_URL=r2dbc:postgresql://postgres:5432/account_db
       - SPRING_R2DBC_USERNAME=admin
       - SPRING_R2DBC_PASSWORD=password
       - SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS=kafka:29092
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
 
   transfer-service:
     build:
@@ -81,6 +84,8 @@ services:
         condition: service_started
       kafka:
         condition: service_started
+      zipkin:
+        condition: service_started
     environment:
       - SPRING_R2DBC_URL=r2dbc:postgresql://postgres:5432/transfer_db
       - SPRING_R2DBC_USERNAME=admin
@@ -88,3 +93,11 @@ services:
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS=kafka:29092
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: banking-zipkin
+    ports:
+      - "9411:9411"
+    restart: unless-stopped
