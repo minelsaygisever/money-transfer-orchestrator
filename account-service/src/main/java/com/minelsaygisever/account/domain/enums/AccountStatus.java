@@ -1,4 +1,4 @@
-package com.minelsaygisever.account.domain;
+package com.minelsaygisever.account.domain.enums;
 
 public enum AccountStatus {
     ACTIVE,

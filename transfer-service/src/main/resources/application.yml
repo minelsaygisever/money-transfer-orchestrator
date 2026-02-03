@@ -1,12 +1,62 @@
 server:
   port: 8080
 
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: "http://localhost:9411/api/v2/spans"
+
 spring:
   application:
     name: transfer-service
 
+  cloud:
+    function:
+      definition: onAccountEvent
+
+    stream:
+      kafka:
+        binder:
+          brokers: localhost:9092
+          auto-create-topics: true
+        bindings:
+          onAccountEvent-in-0:
+            consumer:
+              enable-dlq: true
+              dlq-name: transfer-service-saga-dlq
+              dlq-partitions: 1
+      bindings:
+        transfer-debit-out-0:
+          destination: transfer-debit-events
+          producer:
+            partition-key-expression: headers['partitionKey']
+
+        transfer-credit-out-0:
+          destination: transfer-credit-events
+          producer:
+            partition-key-expression: headers['partitionKey']
+
+        transfer-refund-out-0:
+          destination: transfer-refund-events
+          producer:
+            partition-key-expression: headers['partitionKey']
+
+        transfer-dlq-0:
+          destination: transfer-events-dlq
+
+        onAccountEvent-in-0:
+          destination: account-events
+          group: transfer-saga-group
+          consumer:
+            max-attempts: 3
+            back-off-initial-interval: 1000
+
+
   r2dbc:
-    url: r2dbc:postgresql://postgres:5432/banking_core
+    url: r2dbc:postgresql://localhost:5432/transfer_db
     username: admin
     password: password
     pool:
@@ -19,8 +69,29 @@ spring:
 
   data:
     redis:
-      host: redis
+      host: localhost
       port: 6379
 
 transfer:
   lock-timeout: 5m
+
+  bindings:
+    debit: transfer-debit-out-0
+    credit: transfer-credit-out-0
+    refund: transfer-refund-out-0
+
+  outbox:
+    batch-size: 20
+    dlq-binding-name: transfer-dlq-0
+    polling-interval: 1000ms
+    max-retries: 5
+
+  backoff:
+    initial-delay: 1m
+    max-delay: 60m
+    multiplier: 2.0
+
+  reconciliation:
+    rate: 1m
+    timeout-threshold: 2m
+    max-retry-duration: 2h

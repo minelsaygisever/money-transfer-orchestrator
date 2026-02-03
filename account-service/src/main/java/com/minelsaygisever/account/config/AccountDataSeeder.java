@@ -1,12 +1,11 @@
 package com.minelsaygisever.account.config;
 
 import com.minelsaygisever.account.domain.Account;
-import com.minelsaygisever.account.domain.AccountStatus;
+import com.minelsaygisever.account.domain.enums.AccountStatus;
 import com.minelsaygisever.account.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;

@@ -1,6 +1,6 @@
 package com.minelsaygisever.transfer.dto;
 
-import com.minelsaygisever.transfer.domain.TransferState;
+import com.minelsaygisever.transfer.domain.enums.TransferState;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
