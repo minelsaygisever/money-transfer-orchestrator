@@ -94,3 +94,4 @@ transfer:
   reconciliation:
     rate: 1m
     timeout-threshold: 2m
+    max-retry-duration: 2h

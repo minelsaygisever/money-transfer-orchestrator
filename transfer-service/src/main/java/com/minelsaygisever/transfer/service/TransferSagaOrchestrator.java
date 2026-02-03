@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -202,6 +203,30 @@ public class TransferSagaOrchestrator {
                     transfer.setState(TransferState.REFUND_FAILED);
                     return transferRepository.save(transfer);
                 })
+                .as(txOp::transactional)
+                .then();
+    }
+
+    // --- STEP 7: RETRY REFUND ---
+    public Mono<Void> retryRefund(Transfer transfer) {
+        log.info("Retrying stuck Refund logic for Tx: {}", transfer.getId());
+
+        var refundEvent = new TransferRefundRequestedEvent(
+                transfer.getTransactionId(),
+                transfer.getSenderAccountId(),
+                transfer.getAmount(),
+                transfer.getCurrency(),
+                "Retry due to Stuck Refund State (Resilience)"
+        );
+
+        transfer.setUpdatedAt(LocalDateTime.now());
+
+        return transferRepository.save(transfer)
+                .flatMap(savedTransfer -> saveOutbox(
+                        savedTransfer.getTransactionId(),
+                        EventType.TRANSFER_REFUND_REQUESTED,
+                        refundEvent)
+                )
                 .as(txOp::transactional)
                 .then();
     }

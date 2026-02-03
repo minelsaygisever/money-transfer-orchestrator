@@ -67,6 +67,9 @@ public record TransferProperties(
             Duration rate,
 
             @DefaultValue("5m")
-            Duration timeoutThreshold
+            Duration timeoutThreshold,
+
+            @DefaultValue("1h")
+            Duration maxRetryDuration
     ) {}
 }

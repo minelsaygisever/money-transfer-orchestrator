@@ -8,11 +8,12 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.UUID;
 
 @Repository
 public interface TransferRepository extends R2dbcRepository<Transfer, Long> {
     Mono<Transfer> findByIdempotencyKey(String idempotencyKey);
     Mono<Transfer> findByTransactionId(UUID transactionId);
-    Flux<Transfer> findByStateAndUpdatedAtBefore(TransferState state, LocalDateTime threshold);
+    Flux<Transfer> findByStateInAndUpdatedAtBefore(Collection<TransferState> states, LocalDateTime threshold);
 }

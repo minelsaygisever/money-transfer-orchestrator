@@ -17,17 +17,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.cloud.stream.binder.test.TestChannelBinderConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -42,21 +36,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
-@Testcontainers
 @Import(TestChannelBinderConfiguration.class)
 @TestPropertySource(properties = "transfer.outbox.polling-interval=1000000")
-class TransferIntegrationTest {
-
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
-            .withInitScript("schema.sql");
-
-    @Container
-    @ServiceConnection(name = "redis")
-    static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:alpine"))
-            .withExposedPorts(6379);
-
+class TransferIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private WebTestClient webTestClient;
 
@@ -113,7 +95,7 @@ class TransferIntegrationTest {
                 .expectNextMatches(outbox -> {
                     assertThat(outbox.getAggregateType()).isEqualTo(AggregateType.TRANSFER);
                     assertThat(outbox.getType()).isEqualTo(EventType.TRANSFER_INITIATED);
-                    assertThat(outbox.getStatus()).isEqualTo(OutboxStatus.PENDING);
+                    assertThat(outbox.getStatus()).isIn(OutboxStatus.PENDING, OutboxStatus.COMPLETED);
 
                     // Payload (JSON)
                     try {

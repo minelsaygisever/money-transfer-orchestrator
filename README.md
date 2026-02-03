@@ -134,8 +134,11 @@ Duplicate requests and events are handled at three distinct layers to ensure **e
 * **Dead Letter Queues (DLQ):** Messages that exceed the maximum retry count are automatically moved to a DLQ topic for manual inspection, preventing "poison pill" messages from blocking the consumption loop.
 
 ### 4. Self-Healing (Saga Reconciliation)
-* **Stuck Transfer Scanner:** A background job detects transactions stuck in the `DEBITED` state due to missing downstream responses.
-* **Auto-Rollback:** Automatically triggers the **Compensation Flow** (refund) after a configurable timeout, preventing funds from being locked indefinitely.
+Protects against lost events and network failures to ensure consistency.
+
+* **Stuck Transfer Scanner:** A background job detects transactions stuck in `DEBITED` or `REFUND_INITIATED` states.
+* **Smart Recovery:** Automatically initiates a **Compensation Flow** (refund) for new failures or **Retries** the refund event for already compensating transactions.
+* **Fail-Safe (Kill Switch):** To prevent infinite loops, transactions stuck beyond a hard limit (e.g., 1 hour) are marked as `FAILED` for manual intervention.
 
 ---
 
