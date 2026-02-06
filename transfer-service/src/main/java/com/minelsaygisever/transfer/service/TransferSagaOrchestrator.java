@@ -19,6 +19,9 @@ import com.minelsaygisever.transfer.domain.enums.OutboxStatus;
 import com.minelsaygisever.transfer.domain.enums.TransferState;
 import com.minelsaygisever.transfer.repository.OutboxRepository;
 import com.minelsaygisever.transfer.repository.TransferRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +40,7 @@ public class TransferSagaOrchestrator {
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
     private final TransactionalOperator txOp;
+    private final MeterRegistry meterRegistry;
 
     // --- STEP 0: START SAGA (Initial Save + Outbox) ---
     public Mono<Transfer> initiateSaga(Transfer transfer) {
@@ -95,6 +99,8 @@ public class TransferSagaOrchestrator {
                     log.error("Debit failed. Marking transfer as DEBIT_FAILED. Tx: {}. Reason: {}", transfer.getId(), event.reason());
                     transfer.setState(TransferState.DEBIT_FAILED);
 
+                    recordSagaDuration(transfer, "failed_debit");
+
                     // No rollback needed because money was never taken.
                     return transferRepository.save(transfer);
                 })
@@ -117,6 +123,8 @@ public class TransferSagaOrchestrator {
 
                     log.info("Credit successful. SAGA COMPLETED successfully. Tx: {}", transfer.getId());
                     transfer.setState(TransferState.COMPLETED);
+
+                    recordSagaDuration(transfer, "success");
 
                     return transferRepository.save(transfer);
                 })
@@ -189,6 +197,10 @@ public class TransferSagaOrchestrator {
                 .flatMap(transfer -> {
                     log.info("Refund successful. Transfer marked as REFUNDED. Tx: {}", transfer.getId());
                     transfer.setState(TransferState.REFUNDED);
+
+                    recordRefundCount(transfer);
+                    recordSagaDuration(transfer, "refunded");
+
                     return transferRepository.save(transfer);
                 })
                 .as(txOp::transactional)
@@ -201,6 +213,10 @@ public class TransferSagaOrchestrator {
                 .flatMap(transfer -> {
                     log.error("CRITICAL: Refund failed! Money is stuck. Tx: {}. Reason: {}", transfer.getId(), event.reason());
                     transfer.setState(TransferState.REFUND_FAILED);
+
+                    recordRefundCount(transfer);
+                    recordSagaDuration(transfer, "failed");
+
                     return transferRepository.save(transfer);
                 })
                 .as(txOp::transactional)
@@ -247,5 +263,28 @@ public class TransferSagaOrchestrator {
                 throw new RuntimeException("Error serializing outbox payload", e);
             }
         }).flatMap(outboxRepository::save);
+    }
+
+    // --- HELPER METHODS ---
+
+    private void recordSagaDuration(Transfer transfer, String status) {
+        LocalDateTime startTime = transfer.getCreatedAt();
+        if (startTime == null) return;
+
+        Timer.builder("money.transfer.saga.duration")
+                .description("Time taken for a transfer saga to complete or rollback")
+                .tag("currency", transfer.getCurrency())
+                .tag("status", status)
+                .register(meterRegistry)
+                .record(java.time.Duration.between(startTime, LocalDateTime.now()));
+    }
+
+    private void recordRefundCount(Transfer transfer) {
+        Counter.builder("money.transfer.refund.count")
+                .description("Total number of refunded transfers")
+                .tag("currency", transfer.getCurrency())
+                .tag("reason", transfer.getFailureReason() != null ? "business_error" : "unknown")
+                .register(meterRegistry)
+                .increment();
     }
 }
