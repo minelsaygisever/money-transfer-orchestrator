@@ -44,6 +44,12 @@ logging:
     com.minelsaygisever.transfer: DEBUG
 
 transfer:
+  outbox:
+    polling-interval: 3600000
   reconciliation:
     rate: 10h
     timeout-threshold: 5m
+  cleanup:
+    batch-size: 5
+    retention-period: 2d
+    cron: "-"

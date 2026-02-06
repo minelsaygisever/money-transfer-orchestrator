@@ -24,6 +24,9 @@ public record AccountProperties(
         OutboxProperties outbox,
 
         @DefaultValue
+        CleanupProperties cleanup,
+
+        @DefaultValue
         BackoffProperties backoff
 ) {
         public record OutboxProperties(
@@ -42,6 +45,17 @@ public record AccountProperties(
 
                 @DefaultValue("5")
                 Integer maxRetries
+        ) {}
+
+        public record CleanupProperties(
+                @DefaultValue("0 0 3 * * *")
+                String cron,
+
+                @DefaultValue("3d")
+                Duration retentionPeriod,
+
+                @DefaultValue("500")
+                Integer batchSize
         ) {}
 
         public record BackoffProperties(

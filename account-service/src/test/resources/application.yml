@@ -17,3 +17,7 @@ account:
   default-currency: TRY
   outbox:
     polling-interval: 3600000
+  cleanup:
+    batch-size: 5
+    retention-period: 2d
+    cron: "-"

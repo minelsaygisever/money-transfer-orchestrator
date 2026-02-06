@@ -86,6 +86,11 @@ transfer:
     polling-interval: 1000ms
     max-retries: 5
 
+  cleanup:
+    cron: "0 */30 * * * *"
+    retention-period: 7d
+    batch-size: 1000
+
   backoff:
     initial-delay: 1m
     max-delay: 60m
