@@ -15,7 +15,7 @@ spring:
 
   cloud:
     function:
-      definition: transferInitiated;transferDepositRequested;transferRefundRequested
+      definition: transferInitiated;transferDepositRequested;transferRefundRequested;onAccountDlqEvent
 
     stream:
       kafka:
@@ -41,6 +41,9 @@ spring:
             partition-key-expression: headers['partitionKey']
         account-dlq-0:
           destination: account-events-dlq
+        onAccountDlqEvent-in-0:
+          destination: account-events-dlq
+          group: account-dlq-monitor-group
 
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/banking_core
@@ -66,11 +69,18 @@ logging:
 account:
   default-daily-limit: 5000.00
   default-currency: TRY
+
   outbox:
     binding-name: account-out-0
     dlq-binding-name: account-dlq-0
     batch-size: 20
     polling-interval: 1000ms
+
+  cleanup:
+    cron: "0 */30 * * * *"
+    retention-period: 7d
+    batch-size: 1000
+
   backoff:
     initial-delay: 1m
     max-delay: 60m

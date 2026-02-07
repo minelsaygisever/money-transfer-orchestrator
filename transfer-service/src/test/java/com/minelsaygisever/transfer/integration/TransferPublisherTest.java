@@ -133,23 +133,32 @@ class TransferPublisherTest extends AbstractIntegrationTest {
     @DisplayName("DLQ Scenario: Max Retries Reached -> Send to DLQ -> Status FAILED")
     void shouldMoveToDLQ_WhenMaxRetriesReached() {
         // 1. ARRANGE
-        int maxRetries = properties.outbox().maxRetries();
+        int maxRetries = 10;
+
 
         Outbox outbox = Outbox.builder()
                 .aggregateType(AggregateType.TRANSFER)
-                .aggregateId("tx-3")
+                .aggregateId("tx-dlq-test")
                 .type(EventType.TRANSFER_INITIATED)
                 .payload("{}")
                 .status(OutboxStatus.PENDING)
-                .retryCount(maxRetries) // Limit reached
+                .retryCount(maxRetries)
                 .createdAt(LocalDateTime.now())
                 .build();
+
         outboxRepository.save(outbox).block();
 
-        when(streamBridge.send(eq(properties.outbox().dlqBindingName()), any())).thenReturn(true);
+        when(streamBridge.send(anyString(), any())).thenAnswer(invocation -> {
+            String targetBinding = invocation.getArgument(0);
+
+            if (targetBinding.contains("dlq")) {
+                return true;
+            }
+            return false;
+        });
 
         // 2. ACT
-        StepVerifier.create(publisher.processOutbox())
+        StepVerifier.create(publisher.processOutbox().as(transactionalOperator::transactional))
                 .expectNextCount(1)
                 .verifyComplete();
 
@@ -160,7 +169,8 @@ class TransferPublisherTest extends AbstractIntegrationTest {
                 )
                 .verifyComplete();
 
-        verify(streamBridge).send(eq(properties.outbox().dlqBindingName()), anyString());
+        verify(streamBridge, atLeast(1)).send(contains("debit"), any());
+        verify(streamBridge, times(1)).send(contains("dlq"), any());
     }
 
     @Test

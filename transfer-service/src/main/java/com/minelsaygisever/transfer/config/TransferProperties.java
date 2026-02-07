@@ -17,6 +17,9 @@ public record TransferProperties(
         OutboxProperties outbox,
 
         @DefaultValue
+        CleanupProperties cleanup,
+
+        @DefaultValue
         BackoffProperties backoff,
 
         @DefaultValue
@@ -37,7 +40,21 @@ public record TransferProperties(
             Duration pollingInterval,
 
             @DefaultValue("5")
-            Integer maxRetries
+            Integer maxRetries,
+
+            @DefaultValue("1000ms")
+            Duration initialDelay
+    ) {}
+
+    public record CleanupProperties(
+            @DefaultValue("0 0 3 * * *")
+            String cron,
+
+            @DefaultValue("3d")
+            Duration retentionPeriod,
+
+            @DefaultValue("500")
+            Integer batchSize
     ) {}
 
     public record BackoffProperties(

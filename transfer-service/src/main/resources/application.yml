@@ -8,6 +8,13 @@ management:
   zipkin:
     tracing:
       endpoint: "http://localhost:9411/api/v2/spans"
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 spring:
   application:
@@ -15,7 +22,7 @@ spring:
 
   cloud:
     function:
-      definition: onAccountEvent
+      definition: onAccountEvent;onTransferDlqEvent
 
     stream:
       kafka:
@@ -54,6 +61,10 @@ spring:
             max-attempts: 3
             back-off-initial-interval: 1000
 
+        onTransferDlqEvent-in-0:
+          destination: transfer-events-dlq
+          group: transfer-dlq-monitor-group
+
 
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/transfer_db
@@ -85,6 +96,12 @@ transfer:
     dlq-binding-name: transfer-dlq-0
     polling-interval: 1000ms
     max-retries: 5
+    initial-delay: 1000ms
+
+  cleanup:
+    cron: "0 */30 * * * *"
+    retention-period: 7d
+    batch-size: 1000
 
   backoff:
     initial-delay: 1m

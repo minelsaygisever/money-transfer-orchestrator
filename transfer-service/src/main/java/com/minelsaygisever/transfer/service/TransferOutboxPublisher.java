@@ -30,7 +30,10 @@ public class TransferOutboxPublisher {
     private final TransferProperties properties;
     private final TransactionalOperator transactionalOperator;
 
-    @Scheduled(fixedDelayString = "${transfer.outbox.polling-interval:500}")
+    @Scheduled(
+            fixedDelayString = "${transfer.outbox.polling-interval:500}",
+            initialDelayString = "${transfer.outbox.initial-delay:1000}"
+    )
     public void pollOutbox() {
         processOutbox()
                 .as(transactionalOperator::transactional)

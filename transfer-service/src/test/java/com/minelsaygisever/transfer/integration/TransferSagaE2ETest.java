@@ -45,6 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureWebTestClient
 @TestPropertySource(properties = {
         "transfer.outbox.polling-interval=100ms",
+        "transfer.outbox.initial-delay=0ms",
         "spring.cloud.stream.kafka.binder.configuration.auto.offset.reset=earliest"
 })
 class TransferSagaE2ETest extends AbstractIntegrationTest {
