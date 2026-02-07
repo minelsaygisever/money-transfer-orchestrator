@@ -46,6 +46,7 @@ logging:
 transfer:
   outbox:
     polling-interval: 3600000
+    initial-delay: 3600000
   reconciliation:
     rate: 10h
     timeout-threshold: 5m

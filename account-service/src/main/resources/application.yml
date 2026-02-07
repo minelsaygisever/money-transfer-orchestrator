@@ -15,7 +15,7 @@ spring:
 
   cloud:
     function:
-      definition: transferInitiated;transferDepositRequested;transferRefundRequested
+      definition: transferInitiated;transferDepositRequested;transferRefundRequested;onAccountDlqEvent
 
     stream:
       kafka:
@@ -41,6 +41,9 @@ spring:
             partition-key-expression: headers['partitionKey']
         account-dlq-0:
           destination: account-events-dlq
+        onAccountDlqEvent-in-0:
+          destination: account-events-dlq
+          group: account-dlq-monitor-group
 
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/banking_core

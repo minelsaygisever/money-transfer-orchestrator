@@ -40,7 +40,10 @@ public record TransferProperties(
             Duration pollingInterval,
 
             @DefaultValue("5")
-            Integer maxRetries
+            Integer maxRetries,
+
+            @DefaultValue("1000ms")
+            Duration initialDelay
     ) {}
 
     public record CleanupProperties(

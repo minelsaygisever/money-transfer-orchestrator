@@ -22,7 +22,7 @@ spring:
 
   cloud:
     function:
-      definition: onAccountEvent
+      definition: onAccountEvent;onTransferDlqEvent
 
     stream:
       kafka:
@@ -61,6 +61,10 @@ spring:
             max-attempts: 3
             back-off-initial-interval: 1000
 
+        onTransferDlqEvent-in-0:
+          destination: transfer-events-dlq
+          group: transfer-dlq-monitor-group
+
 
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/transfer_db
@@ -92,6 +96,7 @@ transfer:
     dlq-binding-name: transfer-dlq-0
     polling-interval: 1000ms
     max-retries: 5
+    initial-delay: 1000ms
 
   cleanup:
     cron: "0 */30 * * * *"
