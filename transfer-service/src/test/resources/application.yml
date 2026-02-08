@@ -4,7 +4,12 @@ spring:
     username: sa
     password:
     pool:
-      enabled: false
+      enabled: true
+      initial-size: 10
+      max-size: 50
+      max-create-connection-time: 20s
+      max-acquire-time: 30s
+      max-life-time: 5m
 
   sql:
     init:
@@ -45,10 +50,10 @@ logging:
 
 transfer:
   outbox:
-    polling-interval: 3600000
-    initial-delay: 3600000
+    polling-interval: 1000000
+    initial-delay: 1000000
   reconciliation:
-    rate: 10h
+    rate: 10000h
     timeout-threshold: 5m
   cleanup:
     batch-size: 5

@@ -1,5 +1,6 @@
 package com.minelsaygisever.account.integration;
 
+import com.minelsaygisever.account.config.TestSecurityConfig;
 import com.minelsaygisever.account.dto.AccountDto;
 import com.minelsaygisever.account.dto.CreateAccountRequest;
 import com.minelsaygisever.account.repository.AccountRepository;
@@ -23,7 +24,7 @@ import java.util.Objects;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
-@Import(TestChannelBinderConfiguration.class)
+@Import({TestChannelBinderConfiguration.class, TestSecurityConfig.class})
 public class AccountIntegrationTest {
 
     @Container

@@ -1,0 +1,43 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: gateway-service
+
+  cloud:
+    gateway:
+
+      server:
+        webflux:
+          routes:
+            - id: account-service
+              uri: http://account-service:8080
+              predicates:
+                - Path=/api/v1/accounts/**
+
+            - id: transfer-service
+              uri: http://transfer-service:8080
+              predicates:
+                - Path=/api/v1/transfers/**
+
+            # --- 3. SWAGGER / OPENAPI ---
+            - id: openapi-account
+              uri: http://account-service:8080
+              predicates:
+                - Path=/v3/api-docs/account/**
+              filters:
+                - RewritePath=/v3/api-docs/account/(?<path>.*), /v3/api-docs/$\{path}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://keycloak:8080/realms/banking-realm/protocol/openid-connect/certs
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: INFO
+    org.springframework.web.reactive.function.client: INFO

@@ -20,6 +20,12 @@ spring:
   application:
     name: transfer-service
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://keycloak:8080/realms/banking-realm/protocol/openid-connect/certs
+
   cloud:
     function:
       definition: onAccountEvent;onTransferDlqEvent

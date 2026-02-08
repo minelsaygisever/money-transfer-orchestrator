@@ -1,5 +1,6 @@
 package com.minelsaygisever.account.integration;
 
+import com.minelsaygisever.account.config.TestSecurityConfig;
 import com.minelsaygisever.account.domain.Outbox;
 import com.minelsaygisever.account.domain.enums.AggregateType;
 import com.minelsaygisever.account.domain.enums.OutboxStatus;
@@ -26,7 +27,7 @@ import static org.awaitility.Awaitility.await;
 
 @SpringBootTest
 @Testcontainers
-@Import(TestChannelBinderConfiguration.class)
+@Import({TestChannelBinderConfiguration.class, TestSecurityConfig.class})
 class AccountCleanupTest  {
 
     @Container

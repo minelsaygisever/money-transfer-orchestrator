@@ -1,6 +1,8 @@
 package com.minelsaygisever.transfer.integration;
 
+import com.minelsaygisever.transfer.config.TestSecurityConfig;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -11,6 +13,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
+@Import(TestSecurityConfig.class)
 public abstract class AbstractIntegrationTest {
 
     @Container
@@ -29,6 +32,5 @@ public abstract class AbstractIntegrationTest {
     @DynamicPropertySource
     static void overrideProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.cloud.stream.kafka.binder.brokers", kafka::getBootstrapServers);
-        registry.add("transfer.outbox.polling-interval", () -> "100ms");
     }
 }

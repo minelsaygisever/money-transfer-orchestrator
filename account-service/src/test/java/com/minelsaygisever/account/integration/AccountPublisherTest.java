@@ -1,6 +1,7 @@
 package com.minelsaygisever.account.integration;
 
 import com.minelsaygisever.account.config.AccountProperties;
+import com.minelsaygisever.account.config.TestSecurityConfig;
 import com.minelsaygisever.account.domain.Outbox;
 import com.minelsaygisever.account.domain.enums.AggregateType;
 import com.minelsaygisever.common.domain.enums.EventType;
@@ -36,7 +37,7 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
-@Import(TestChannelBinderConfiguration.class)
+@Import({TestChannelBinderConfiguration.class, TestSecurityConfig.class})
 class AccountPublisherTest {
 
     @Container
@@ -85,7 +86,8 @@ class AccountPublisherTest {
                 .payload("{\"amount\": 100}")
                 .status(OutboxStatus.PENDING)
                 .retryCount(0)
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now().minusMinutes(1))
+                .nextAttemptTime(LocalDateTime.now().minusMinutes(1))
                 .build();
         outboxRepository.save(outbox).block();
 
@@ -120,7 +122,8 @@ class AccountPublisherTest {
                 .payload("{}")
                 .status(OutboxStatus.PENDING)
                 .retryCount(0)
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now().minusMinutes(1))
+                .nextAttemptTime(LocalDateTime.now().minusMinutes(1))
                 .build();
         outboxRepository.save(outbox).block();
 
@@ -154,7 +157,8 @@ class AccountPublisherTest {
                 .payload("{}")
                 .status(OutboxStatus.PENDING)
                 .retryCount(maxRetries) // Limit reached
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now().minusMinutes(1))
+                .nextAttemptTime(LocalDateTime.now().minusMinutes(1))
                 .build();
         outboxRepository.save(outbox).block();
 
@@ -186,7 +190,8 @@ class AccountPublisherTest {
                 .payload("{}")
                 .status(OutboxStatus.PENDING)
                 .retryCount(0)
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now().minusMinutes(1))
+                .nextAttemptTime(LocalDateTime.now().minusMinutes(1))
                 .build();
         outboxRepository.save(outbox).block();
 
