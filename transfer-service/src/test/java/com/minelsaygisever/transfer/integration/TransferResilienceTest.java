@@ -3,12 +3,14 @@ package com.minelsaygisever.transfer.integration;
 import com.minelsaygisever.transfer.dto.TransferCommand;
 import com.minelsaygisever.transfer.repository.TransferRepository;
 import com.minelsaygisever.transfer.service.TransferService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -30,6 +32,12 @@ class TransferResilienceTest extends AbstractIntegrationTest {
 
     @Autowired
     private ReactiveRedisTemplate<String, Object> redisTemplate;
+
+    @BeforeEach
+    void setupMock() {
+        when(transferRepository.findByStateInAndUpdatedAtBefore(any(), any()))
+                .thenReturn(Flux.empty());
+    }
 
     @Test
     @DisplayName("Resilience: Should release Redis lock when Database Save fails")

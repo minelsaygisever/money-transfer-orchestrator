@@ -13,15 +13,19 @@ This project demonstrates advanced distributed system concepts including Idempot
 
 ## Tech Stack
 
-| Component | Technology      | Description |
+| Component | Technology | Description |
 |-----------|-----------------|-------------|
-| **Core** | Java 21         | Utilizes Records for immutable events and modern features for concise, maintainable code. |
-| **Framework** | Spring Boot 3.x | With **Spring WebFlux** for non-blocking I/O. |
-| **Database** | PostgreSQL      | Accessed via **R2DBC** (Reactive Relational Database Connectivity). |
-| **Messaging** | Apache Kafka    | Managed via Spring Cloud Stream. |
-| **Caching/Locking** | Redis           | Used for distributed locking and caching. |
+| **Core** | Java 21 | Utilizes Records, Pattern Matching, and Virtual Threads (ready) for high performance. |
+| **Framework** | Spring Boot 3.x | Built on **Spring WebFlux** for non-blocking, reactive I/O operations. |
+| **Identity & Access** | **Keycloak** | Centralized Identity Provider (IdP) implementing **OAuth2 & OIDC** standards. |
+| **API Gateway** | **Spring Cloud Gateway** | Reactive edge service for routing, filtering, and centralizing security policies. |
+| **Security** | Spring Security | Acts as an **OAuth2 Resource Server** to validate JWT tokens at the microservice level. |
+| **Database** | PostgreSQL | Accessed via **R2DBC** for fully reactive database interactions. |
+| **Messaging** | Apache Kafka | Event streaming platform managed via **Spring Cloud Stream** for decoupled communication. |
+| **Caching & Locking** | Redis | Used for distributed locking (Redlock) and idempotency checks. |
 | **Observability** | Zipkin & Micrometer | Distributed tracing to visualize the saga flow and latency. |
-| **Testing** | Testcontainers  | Integration tests with real Docker containers (Kafka, Postgres). |
+| **Testing** | Testcontainers | Integration tests using real Docker containers (Kafka, Postgres, Keycloak). |
+| **API Docs** | OpenAPI (Swagger) | Interactive API documentation integrated with **OAuth2 Security Flow**. |
 
 ---
 
@@ -31,16 +35,39 @@ The system consists of two main microservices and an infrastructure layer.
 
 ```mermaid
 graph TD
-    User[Client / API] -->|HTTP POST /transfers| TS[Transfer Service]
-    TS -->|Atomic Lock| Redis[(Redis)]
-    TS -->|Persist State| TDB[(Transfer DB)]
-    TS -->|Produce Events| Kafka{Apache Kafka}
+    %% --- Subgraphs ---
+    subgraph Security_Layer [Security & Entry Point]
+    User([User / Client])
+    KC["Keycloak <br/>(Auth Server)"]
+    GW["API Gateway <br/>(Port 8082)"]
+    end
     
-    Kafka -->|Consume Events| AS[Account Service]
-    AS -->|Update Balance| ADB[(Account DB)]
-    AS -->|Produce Result Events| Kafka
+    subgraph Core_Services [Microservices Domain]
+    TS["Transfer Service <br/>(Port 8081)"]
+    AS["Account Service <br/>(Port 8080)"]
+    Redis[("Redis <br/>Dist. Lock")]
+    TDB[("Transfer DB")]
+    ADB[("Account DB")]
+    end
     
-    Kafka -->|Consume Result| TS
+    subgraph Event_Bus [Event Backbone]
+    Kafka{Apache Kafka}
+    end
+    
+    %% --- Flow ---
+    
+    User -- "1. Login & Get Token" --> KC
+    User -- "2. HTTP POST + JWT Token" --> GW
+    GW -- "3. Verify Token & Route" --> TS
+    GW -- "3. Verify Token & Route" --> AS
+    TS -- "4. Idempotency Check" --> Redis
+    TS -- "5. Persist (STARTED)" --> TDB
+    TS -- "6. Publish Event" --> Kafka
+    Kafka -- "7. Consume (TransferInitiated)" --> AS
+    AS -- "8. Update Balance" --> ADB
+    AS -- "9. Publish Result" --> Kafka
+    Kafka -- "10. Consume Result" --> TS
+    TS -- "11. Finalize State" --> TDB
 ```
 ---
 
@@ -53,28 +80,32 @@ The standard flow where both debit (sender) and credit (receiver) operations suc
 sequenceDiagram
     autonumber
     participant User
-    participant TS as Transfer Svc (Orchestrator)
+    participant GW as API Gateway
+    participant TS as Transfer Svc
     participant K as Kafka
     participant AS as Account Svc
-    
-    User->>TS: Initiate Transfer (POST)
+
+    User->>GW: POST /transfers (Token)
+    GW->>TS: Route Request (Authorized)
+
     Note right of TS: 1. Idempotency Check (Redis)<br/>2. Save Transfer (STARTED)<br/>3. Save Outbox (TRANSFER_INITIATED)
-    TS-->>User: 202 Accepted
-    
+    TS-->>GW: 202 Accepted
+    GW-->>User: 202 Accepted
+
     TS->>K: Event: TRANSFER_INITIATED
     K->>AS: Consume Event
-    
+
     Note right of AS: 1. Validate Balance<br/>2. Debit Sender<br/>3. Save Outbox (ACCOUNT_DEBITED)
     AS->>K: Event: ACCOUNT_DEBITED
-    
+
     K->>TS: Consume Result (Debit Success)
     Note right of TS: 1. Update State: DEBITED<br/>2. Save Outbox (TRANSFER_DEPOSIT_REQUESTED)
-    
+
     TS->>K: Event: TRANSFER_DEPOSIT_REQUESTED
     K->>AS: Consume Event
     Note right of AS: 1. Credit Receiver<br/>2. Save Outbox (ACCOUNT_CREDITED)
     AS->>K: Event: ACCOUNT_CREDITED
-    
+
     K->>TS: Consume Result (Credit Success)
     Note right of TS: Update State: COMPLETED
 ```
@@ -88,24 +119,24 @@ sequenceDiagram
     participant TS as Transfer Svc (Orchestrator)
     participant K as Kafka
     participant AS as Account Svc
-    
+
     Note over TS, AS: ... Debit was successful (State: DEBITED) ...
-    
+
     TS->>K: Event: TRANSFER_DEPOSIT_REQUESTED
     K->>AS: Consume Event
-    
+
     Note right of AS: 1. Credit Fails (e.g. Account Closed)<br/>2. Save Outbox (ACCOUNT_CREDIT_FAILED)
     AS->>K: Event: ACCOUNT_CREDIT_FAILED
-    
+
     K->>TS: Consume Failure
     Note right of TS: 1. Update State: REFUND_INITIATED<br/>2. Save Outbox (TRANSFER_REFUND_REQUESTED)
-    
+
     TS->>K: Event: TRANSFER_REFUND_REQUESTED
     K->>AS: Consume Refund Request
-    
+
     Note right of AS: 1. Refund Sender (Credit back)<br/>2. Save Outbox (ACCOUNT_REFUNDED)
     AS->>K: Event: ACCOUNT_REFUNDED
-    
+
     K->>TS: Consume Success
     Note right of TS: Update State: REFUNDED
     Note over TS, AS: Saga Finished (Consistent State)
@@ -150,29 +181,63 @@ Protects against lost events and network failures to ensure consistency.
 - Maven
 
 ### 1. Start Infrastructure
-Start Kafka, Zookeeper, PostgreSQL, Redis, and Zipkin containers:
+Run the following command to build the services and start the entire infrastructure (Kafka, Postgres, Keycloak, Gateway, Microservices):
 ```bash
-docker-compose up -d
+docker-compose up -d --build
 ```
 
-### 2. Build & Run Services
-Open two terminal tabs:
+### 2. Authentication (Login)
+The system uses Keycloak for Identity Management. A test user is automatically configured for the demonstration.
 
-#### Terminal 1 (Account Service):
-```bash
-mvn clean install -DskipTests
-java -jar account-service/target/account-service-0.0.1.jar
+* Keycloak Console: http://localhost:8180 (admin/admin)
+* Test User Credentials:
+  * Username: test
+  * Password: 12345
+
+### 3. Accessing APIs
+All external API requests are routed through the API Gateway (Port 8082). You must authenticate to perform operations.
+
+#### Option A: Using Swagger UI (Recommended)
+We have integrated OAuth2 "Password Flow" into Swagger. You can authorize directly within the browser without needing external tools.
+
+1. Open Transfer Service Swagger: http://localhost:8081/webjars/swagger-ui/index.html
+2. Click the Authorize (🔓) button.
+3. Enter the credentials:
+   * client_id: banking-client
+   * username: test
+   * password: 12345
+   * client_secret: (leave empty)
+
+4. Click Authorize and then Close. Now you can execute any endpoint directly from the UI.
+
+#### Option B: Using Postman / cURL
+If you prefer manual testing, you must first obtain a JWT Token and then send requests to the Gateway.
+#### Step 1: Get Token
+```http
+POST http://localhost:8180/realms/banking-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id=banking-client
+username=test
+password=12345
+grant_type=password
 ```
 
-#### Terminal 2 (Transfer Service):
-```bash
-java -jar transfer-service/target/transfer-service-0.0.1.jar
-```
-### 3. Access API Documentation (Swagger)
-Once the services are running, you can explore the APIs and trigger transfers manually:
+#### Step 2: Send Request (Via Gateway)
+Use the ```access_token``` returned from the previous step as a Bearer Token.
 
-* **Transfer Service:** [http://localhost:8081/webjars/swagger-ui/index.html](http://localhost:8081/webjars/swagger-ui/index.html)
-* **Account Service:** [http://localhost:8080/webjars/swagger-ui/index.html](http://localhost:8080/webjars/swagger-ui/index.html)
+```http
+POST http://localhost:8082/api/v1/transfers
+Authorization: Bearer <YOUR_ACCESS_TOKEN>
+Content-Type: application/json
+
+{
+  "senderAccountId": "11111",
+  "receiverAccountId": "22222",
+  "amount": 100.00,
+  "currency": "TRY"
+}
+```
 
 ---
 
@@ -190,6 +255,5 @@ The project ensures reliability through a rigorous testing pyramid using Testcon
 
 The following features are planned to move the system towards **Enterprise-Grade** readiness and complete the observability goals:
 
-* **Security (OAuth2 / OIDC):** Integrating **Keycloak** to secure public endpoints and manage user identities, ensuring only authorized users can initiate transfers.
 *  **Cloud-Native Deployment:** Migrating from Docker Compose to **Kubernetes** using **Helm Charts** to demonstrate scalable, production-ready deployment strategies.
 *  **Advanced Chaos Engineering:** Integrating **Toxiproxy** to simulate network latency and connection cuts between microservices.

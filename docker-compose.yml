@@ -11,7 +11,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init-scripts:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d banking_core"]
       interval: 10s
@@ -48,6 +48,26 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.0
+    container_name: banking-keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: password
+      KC_HOSTNAME: localhost
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak-realm/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    ports:
+      - "8180:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   account-service:
     build:
@@ -94,6 +114,20 @@ services:
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS=kafka:29092
       - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+    container_name: banking-gateway
+    ports:
+      - "8082:8082"
+    depends_on:
+      - keycloak
+      - account-service
+      - transfer-service
+    environment:
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/banking-realm/protocol/openid-connect/certs
 
   zipkin:
     image: openzipkin/zipkin

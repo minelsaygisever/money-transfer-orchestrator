@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.r2dbc.core.DatabaseClient;
+import org.springframework.test.annotation.DirtiesContext;
 import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @SpringBootTest
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class SagaReconciliationTest extends AbstractIntegrationTest {
 
     @Autowired

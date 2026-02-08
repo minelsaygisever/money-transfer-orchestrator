@@ -1,5 +1,6 @@
 package com.minelsaygisever.account.integration.consumer;
 
+import com.minelsaygisever.account.config.TestSecurityConfig;
 import com.minelsaygisever.account.domain.Account;
 import com.minelsaygisever.account.domain.enums.AccountStatus;
 import com.minelsaygisever.common.domain.enums.EventType;
@@ -35,7 +36,7 @@ import static org.awaitility.Awaitility.await;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
-@Import(TestChannelBinderConfiguration.class)
+@Import({TestChannelBinderConfiguration.class, TestSecurityConfig.class})
 class AccountDebitConsumerTest {
 
     @Container

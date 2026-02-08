@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
@@ -88,7 +89,9 @@ class TransferSagaE2ETest extends AbstractIntegrationTest {
         String idempotencyKey = UUID.randomUUID().toString();
         TransferApiRequest request = new TransferApiRequest("ACC-A", "ACC-B", new BigDecimal("100.00"), "EUR");
 
-        TransferResponse initialResponse = webTestClient.post()
+        TransferResponse initialResponse = webTestClient
+                .mutateWith(mockJwt())
+                .post()
                 .uri("/api/v1/transfers")
                 .header("x-idempotency-key", idempotencyKey)
                 .bodyValue(request)
@@ -152,7 +155,9 @@ class TransferSagaE2ETest extends AbstractIntegrationTest {
         String idempotencyKey = UUID.randomUUID().toString();
         TransferApiRequest request = new TransferApiRequest("ACC-A", "ACC-B", new BigDecimal("50.00"), "EUR");
 
-        TransferResponse response = webTestClient.post()
+        TransferResponse response = webTestClient
+                .mutateWith(mockJwt())
+                .post()
                 .uri("/api/v1/transfers")
                 .header("x-idempotency-key", idempotencyKey)
                 .bodyValue(request)

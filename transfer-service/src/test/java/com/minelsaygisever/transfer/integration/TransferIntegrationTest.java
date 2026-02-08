@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
@@ -71,7 +72,9 @@ class TransferIntegrationTest extends AbstractIntegrationTest {
         );
 
         // 2. Act
-        webTestClient.post()
+        webTestClient
+                .mutateWith(mockJwt())
+                .post()
                 .uri("/api/v1/transfers")
                 .header("x-idempotency-key", idempotencyKey)
                 .bodyValue(request)
@@ -138,7 +141,9 @@ class TransferIntegrationTest extends AbstractIntegrationTest {
         );
 
         // 1. Request
-        TransferResponse firstResponse = webTestClient.post()
+        TransferResponse firstResponse = webTestClient
+                .mutateWith(mockJwt())
+                .post()
                 .uri("/api/v1/transfers")
                 .header("x-idempotency-key", idempotencyKey)
                 .bodyValue(request)
@@ -151,7 +156,9 @@ class TransferIntegrationTest extends AbstractIntegrationTest {
         assertThat(firstResponse).isNotNull();
 
         // 2. Same Request
-        webTestClient.post()
+        webTestClient
+                .mutateWith(mockJwt())
+                .post()
                 .uri("/api/v1/transfers")
                 .header("x-idempotency-key", idempotencyKey)
                 .bodyValue(request)
@@ -184,7 +191,9 @@ class TransferIntegrationTest extends AbstractIntegrationTest {
                 "1", "2", new BigDecimal("50.00"), "USD"
         );
 
-        TransferResponse firstResponse = webTestClient.post()
+        TransferResponse firstResponse = webTestClient
+                .mutateWith(mockJwt())
+                .post()
                 .uri("/api/v1/transfers")
                 .header("x-idempotency-key", idempotencyKey)
                 .bodyValue(first)
@@ -201,7 +210,9 @@ class TransferIntegrationTest extends AbstractIntegrationTest {
                 "1", "2", new BigDecimal("60.00"), "USD" // <-- changed amount
         );
 
-        webTestClient.post()
+        webTestClient
+                .mutateWith(mockJwt())
+                .post()
                 .uri("/api/v1/transfers")
                 .header("x-idempotency-key", idempotencyKey)
                 .bodyValue(second)
@@ -241,7 +252,9 @@ class TransferIntegrationTest extends AbstractIntegrationTest {
         Flux<Integer> responses = Flux.range(0, parallelRequests)
                 .parallel()
                 .runOn(Schedulers.boundedElastic())
-                .flatMap(i -> webTestClient.post()
+                .flatMap(i -> webTestClient
+                        .mutateWith(mockJwt())
+                        .post()
                         .uri("/api/v1/transfers")
                         .header("x-idempotency-key", idempotencyKey)
                         .bodyValue(request)
