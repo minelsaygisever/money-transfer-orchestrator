@@ -10,7 +10,7 @@ public record TransferApiRequest(
         @NotBlank(message = "Sender account ID is required")
         String senderAccountId,
 
-        @Schema(description = "Receiver Account ID", example = "2")
+        @Schema(description = "Receiver Account ID", example = "3")
         @NotBlank(message = "Receiver account ID is required")
         String receiverAccountId,
 

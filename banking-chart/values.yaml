@@ -1,0 +1,41 @@
+# Global Settings
+global:
+  environment: dev
+  postgres:
+    host: postgres
+    port: 5432
+    auth:
+      username: admin
+      password: password
+    databases:
+      account: account_db
+      transfer: transfer_db
+      keycloak: keycloak
+  kafka:
+    broker: kafka-broker:9092
+  redis:
+    host: redis
+    port: 6379
+
+# Service Settings
+accountService:
+  image: money-transfer-orchestrator-account-service:latest
+  port: 8080
+  replicas: 1
+
+transferService:
+  image: money-transfer-orchestrator-transfer-service:latest
+  port: 8080
+  replicas: 1
+
+gatewayService:
+  image: money-transfer-orchestrator-gateway-service:latest
+  replicas: 1
+  port: 8082
+  type: NodePort
+  nodePort: 30082
+
+keycloak:
+  port: 8080
+  type: NodePort
+  nodePort: 30080

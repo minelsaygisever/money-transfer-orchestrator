@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: transfer-service
+spec:
+  ports:
+    - port: {{ .Values.transferService.port }}
+      targetPort: {{ .Values.transferService.port }}
+  selector:
+    app: transfer-service
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transfer-service
+spec:
+  replicas: {{ .Values.transferService.replicas }}
+  selector:
+    matchLabels:
+      app: transfer-service
+  template:
+    metadata:
+      labels:
+        app: transfer-service
+    spec:
+      containers:
+        - name: transfer-service
+          image: {{ .Values.transferService.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.transferService.port }}
+          env:
+            # Database
+            - name: SPRING_R2DBC_URL
+              value: "r2dbc:postgresql://{{ .Values.global.postgres.host }}:{{ .Values.global.postgres.port }}/{{ .Values.global.postgres.databases.transfer }}"
+            - name: SPRING_R2DBC_USERNAME
+              value: {{ .Values.global.postgres.auth.username }}
+            - name: SPRING_R2DBC_PASSWORD
+              value: {{ .Values.global.postgres.auth.password }}
+            # Redis
+            - name: SPRING_DATA_REDIS_HOST
+              value: {{ .Values.global.redis.host }}
+            - name: SPRING_DATA_REDIS_PORT
+              value: "{{ .Values.global.redis.port }}"
+            # Kafka
+            - name: SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS
+              value: {{ .Values.global.kafka.broker }}
+            # Keycloak
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+              value: "http://keycloak:8080/realms/banking-realm/protocol/openid-connect/certs"
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: "http://zipkin:9411/api/v2/spans"
+          resources:
+            requests:
+              memory: "256Mi"
+            limits:
+              memory: "512Mi"

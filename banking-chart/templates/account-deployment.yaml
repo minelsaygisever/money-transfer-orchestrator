@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-service
+spec:
+  ports:
+    - port: {{ .Values.accountService.port }}
+      targetPort: {{ .Values.accountService.port }}
+  selector:
+    app: account-service
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-service
+spec:
+  replicas: {{ .Values.accountService.replicas }}
+  selector:
+    matchLabels:
+      app: account-service
+  template:
+    metadata:
+      labels:
+        app: account-service
+    spec:
+      containers:
+        - name: account-service
+          image: {{ .Values.accountService.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.accountService.port }}
+          env:
+            # Database
+            - name: SPRING_R2DBC_URL
+              value: "r2dbc:postgresql://{{ .Values.global.postgres.host }}:{{ .Values.global.postgres.port }}/{{ .Values.global.postgres.databases.account }}"
+            - name: SPRING_R2DBC_USERNAME
+              value: {{ .Values.global.postgres.auth.username }}
+            - name: SPRING_R2DBC_PASSWORD
+              value: {{ .Values.global.postgres.auth.password }}
+            # Kafka
+            - name: SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS
+              value: {{ .Values.global.kafka.broker }}
+            # Keycloak
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+              value: "http://keycloak:8080/realms/banking-realm/protocol/openid-connect/certs"
+            # Zipkin
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: "http://zipkin:9411/api/v2/spans"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB
+              value: "DEBUG"
+          resources:
+            requests:
+              memory: "256Mi"
+            limits:
+              memory: "512Mi"

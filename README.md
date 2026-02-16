@@ -4,6 +4,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-green.svg)](https://spring.io/projects/spring-boot)
 [![Kafka](https://img.shields.io/badge/Kafka-Event%20Streaming-black.svg)](https://kafka.apache.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://www.docker.com/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-Helm-326ce5.svg)](https://kubernetes.io/)
 
 A high-performance, non-blocking, distributed money transfer system built with Spring Boot WebFlux and Kafka. It implements the Orchestration-based Saga Pattern to ensure eventual consistency across microservices without using 2PC (Two-Phase Commit).
 
@@ -13,19 +14,20 @@ This project demonstrates advanced distributed system concepts including Idempot
 
 ## Tech Stack
 
-| Component | Technology | Description |
-|-----------|-----------------|-------------|
-| **Core** | Java 21 | Utilizes Records, Pattern Matching, and Virtual Threads (ready) for high performance. |
-| **Framework** | Spring Boot 3.x | Built on **Spring WebFlux** for non-blocking, reactive I/O operations. |
-| **Identity & Access** | **Keycloak** | Centralized Identity Provider (IdP) implementing **OAuth2 & OIDC** standards. |
-| **API Gateway** | **Spring Cloud Gateway** | Reactive edge service for routing, filtering, and centralizing security policies. |
-| **Security** | Spring Security | Acts as an **OAuth2 Resource Server** to validate JWT tokens at the microservice level. |
-| **Database** | PostgreSQL | Accessed via **R2DBC** for fully reactive database interactions. |
-| **Messaging** | Apache Kafka | Event streaming platform managed via **Spring Cloud Stream** for decoupled communication. |
-| **Caching & Locking** | Redis | Used for distributed locking (Redlock) and idempotency checks. |
-| **Observability** | Zipkin & Micrometer | Distributed tracing to visualize the saga flow and latency. |
-| **Testing** | Testcontainers | Integration tests using real Docker containers (Kafka, Postgres, Keycloak). |
-| **API Docs** | OpenAPI (Swagger) | Interactive API documentation integrated with **OAuth2 Security Flow**. |
+| Component             | Technology           | Description                                                                                                     |
+|-----------------------|----------------------|-----------------------------------------------------------------------------------------------------------------|
+| **Core**              | Java 21              | Utilizes Records, Pattern Matching, and Virtual Threads (ready) for high performance.                           |
+| **Framework**         | Spring Boot 3.x      | Built on **Spring WebFlux** for non-blocking, reactive I/O operations.                                          |
+| **Identity & Access** | Keycloak             | Centralized Identity Provider (IdP) implementing **OAuth2 & OIDC** standards.                                   |
+| **API Gateway**       | Spring Cloud Gateway | Reactive edge service for routing, filtering, and centralizing security policies.                               |
+| **Security**          | Spring Security      | Acts as an **OAuth2 Resource Server** to validate JWT tokens at the microservice level.                         |
+| **Database**          | PostgreSQL           | Accessed via **R2DBC** for fully reactive database interactions.                                                |
+| **Messaging**         | Apache Kafka         | Event streaming platform managed via **Spring Cloud Stream** for decoupled communication.                       |
+| **Deployment**        | Kubernetes & Helm    | Production-ready deployment using custom **Helm Charts** for local (Minikube/Docker Desktop) or cloud clusters. |
+| **Caching & Locking** | Redis                | Used for distributed locking (Redlock) and idempotency checks.                                                  |
+| **Observability**     | Zipkin & Micrometer  | Distributed tracing to visualize the saga flow and latency.                                                     |
+| **Testing**           | Testcontainers       | Integration tests using real Docker containers (Kafka, Postgres, Keycloak).                                     |
+| **API Docs**          | OpenAPI (Swagger)    | Interactive API documentation integrated with **OAuth2 Security Flow**.                                         |
 
 ---
 
@@ -179,65 +181,77 @@ Protects against lost events and network failures to ensure consistency.
 - Docker & Docker Compose
 - Java 21+
 - Maven
+- Kubernetes CLI (kubectl)
+- Helm
 
 ### 1. Start Infrastructure
-Run the following command to build the services and start the entire infrastructure (Kafka, Postgres, Keycloak, Gateway, Microservices):
+
+#### Option A: Kubernetes
+Run the following command to build the services and start the infrastructure:
+```bash
+# Deploys everything with a single command (Builds images -> Installs Helm Chart)
+make restart
+
+# Opens tunnels for Gateway and Keycloak (Required for accessing endpoints)
+make tunnel
+```
+
+
+#### Option B: Docker Compose
+Run the following command to build the services and start the infrastructure:
 ```bash
 docker-compose up -d --build
 ```
 
-### 2. Authentication (Login)
-The system uses Keycloak for Identity Management. A test user is automatically configured for the demonstration.
 
-* Keycloak Console: http://localhost:8180 (admin/admin)
-* Test User Credentials:
-  * Username: test
-  * Password: 12345
+### 2. Default Test Data (Data Seeder)
+The application automatically seeds the database with the following test accounts on startup:
+
+| Customer ID | Balance | Currency | Daily Limit |
+|-------------|---------|----------|-------------|
+| 11111       | 1000.00 | TRY      | 10000.00    |
+| 22222       | 500.00  | USD      | 10000.00    |
+| 33333       | 5000.00 | TRY      | 10000.00    |
+
+> **Quick Test:** Try transferring **100.00 TRY** from sender `11111` to receiver `33333`.
 
 ### 3. Accessing APIs
-All external API requests are routed through the API Gateway (Port 8082). You must authenticate to perform operations.
 
-#### Option A: Using Swagger UI (Recommended)
-We have integrated OAuth2 "Password Flow" into Swagger. You can authorize directly within the browser without needing external tools.
+Access methods differ based on your deployment strategy.
 
-1. Open Transfer Service Swagger: http://localhost:8081/webjars/swagger-ui/index.html
-2. Click the Authorize (🔓) button.
-3. Enter the credentials:
-   * client_id: banking-client
-   * username: test
-   * password: 12345
-   * client_secret: (leave empty)
+| Component | Kubernetes (NodePort) | Docker Compose (Direct) |
+|-----------|-----------------------|-------------------------|
+| **Unified Swagger UI** | **[http://localhost:30082](http://localhost:30082/webjars/swagger-ui/index.html)** | *(Not Available)* |
+| **Account Swagger** | *(Select in Unified UI)* | **[http://localhost:8080](http://localhost:8080/webjars/swagger-ui/index.html)** |
+| **Transfer Swagger** | *(Select in Unified UI)* | **[http://localhost:8081](http://localhost:8081/webjars/swagger-ui/index.html)** |
+| **API Gateway (Curl)**| `http://localhost:30082` | `http://localhost:8082` |
+| **Keycloak** | `http://localhost:8180` | `http://localhost:8180` |
 
-4. Click Authorize and then Close. Now you can execute any endpoint directly from the UI.
+---
 
-#### Option B: Using Postman / cURL
-If you prefer manual testing, you must first obtain a JWT Token and then send requests to the Gateway.
-#### Step 1: Get Token
-```http
-POST http://localhost:8180/realms/banking-realm/protocol/openid-connect/token
-Content-Type: application/x-www-form-urlencoded
+#### Option A: Kubernetes
+In Kubernetes mode, we use **OpenAPI Aggregation**. You can access all microservices from a single Gateway UI.
 
-client_id=banking-client
-username=test
-password=12345
-grant_type=password
-```
+1. **Open Gateway UI:** [http://localhost:30082/webjars/swagger-ui/index.html](http://localhost:30082/webjars/swagger-ui/index.html)
+2. **Select Definition:** Use the dropdown in the top right to switch between services:
+   * **account**: Account Management APIs
+   * **transfer**: Money Transfer APIs
+3. **Authorize:** Click 🔓
+   * **username:** `test`
+   * **password:** `12345`
+   * **client_id:** `banking-client`
+   * **client_secret:** empty
 
-#### Step 2: Send Request (Via Gateway)
-Use the ```access_token``` returned from the previous step as a Bearer Token.
+#### Option B: Docker Compose
+In Docker Compose mode, services are exposed individually.
 
-```http
-POST http://localhost:8082/api/v1/transfers
-Authorization: Bearer <YOUR_ACCESS_TOKEN>
-Content-Type: application/json
-
-{
-  "senderAccountId": "11111",
-  "receiverAccountId": "22222",
-  "amount": 100.00,
-  "currency": "TRY"
-}
-```
+1. **Account Service:** [http://localhost:8080/webjars/swagger-ui/index.html](http://localhost:8080/webjars/swagger-ui/index.html)
+2. **Transfer Service:** [http://localhost:8081/webjars/swagger-ui/index.html](http://localhost:8081/webjars/swagger-ui/index.html)
+3. **Authorize:** Click 🔓
+   * **username:** `test`
+   * **password:** `12345`
+   * **client_id:** `banking-client`
+   * **client_secret:** empty
 
 ---
 
@@ -255,5 +269,4 @@ The project ensures reliability through a rigorous testing pyramid using Testcon
 
 The following features are planned to move the system towards **Enterprise-Grade** readiness and complete the observability goals:
 
-*  **Cloud-Native Deployment:** Migrating from Docker Compose to **Kubernetes** using **Helm Charts** to demonstrate scalable, production-ready deployment strategies.
 *  **Advanced Chaos Engineering:** Integrating **Toxiproxy** to simulate network latency and connection cuts between microservices.
