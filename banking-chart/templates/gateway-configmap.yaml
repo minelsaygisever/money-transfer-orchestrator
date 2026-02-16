@@ -12,7 +12,6 @@ data:
         name: gateway-service
       main:
         web-application-type: reactive
-      
       security:
         oauth2:
           resourceserver:
@@ -30,7 +29,7 @@ data:
                 allowedOrigins: "*"
                 allowedMethods: "*"
                 allowedHeaders: "*"
-                
+
           server:
             webflux:
               routes:
@@ -39,43 +38,52 @@ data:
                   uri: http://account-service:8080
                   predicates:
                     - Path=/api/v1/accounts/**
-                
+                  filters:
+                    - AddRequestHeader=X-Forwarded-Host, localhost:30082
+                    - AddRequestHeader=X-Forwarded-Proto, http
+
                 # 2. Transfer Service
                 - id: transfer-service
                   uri: http://transfer-service:8080
                   predicates:
                     - Path=/api/v1/transfers/**
-                
-                # 3. Account Swagger
+                  filters:
+                    - AddRequestHeader=X-Forwarded-Host, localhost:30082
+                    - AddRequestHeader=X-Forwarded-Proto, http
+
+                # 3. Account Swagger Config
                 - id: openapi-account
                   uri: http://account-service:8080
                   predicates:
                     - Path=/v3/api-docs/account
                   filters:
                     - SetPath=/v3/api-docs
+                    - AddRequestHeader=X-Forwarded-Host, localhost:30082
+                    - AddRequestHeader=X-Forwarded-Proto, http
 
-                # 4. Transfer Swagger 
+                # 4. Transfer Swagger Config
                 - id: openapi-transfer
                   uri: http://transfer-service:8080
                   predicates:
                     - Path=/v3/api-docs/transfer
                   filters:
                     - SetPath=/v3/api-docs
+                    - AddRequestHeader=X-Forwarded-Host, localhost:30082
+                    - AddRequestHeader=X-Forwarded-Proto, http
 
-    # --- SWAGGER UI ---
     springdoc:
       api-docs:
         enabled: true
       swagger-ui:
         enabled: true
         path: /swagger-ui.html
+        use-root-path: true
         urls:
           - name: account
             url: /v3/api-docs/account
           - name: transfer
             url: /v3/api-docs/transfer
 
-    # --- ACTUATOR ---
     management:
       endpoints:
         web:

@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-service
+spec:
+  replicas: {{ .Values.gatewayService.replicas }}
+  selector:
+    matchLabels:
+      app: gateway-service
+  template:
+    metadata:
+      labels:
+        app: gateway-service
+    spec:
+      containers:
+        - name: gateway-service
+          image: {{ .Values.gatewayService.image }}
+          imagePullPolicy: IfNotPresent
+
+          env:
+            - name: SPRING_CONFIG_LOCATION
+              value: "file:/workspace/config/application.yml"
+
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+              value: "http://keycloak:8080/realms/banking-realm/protocol/openid-connect/certs"
+
+          ports:
+            - containerPort: 8082
+
+          volumeMounts:
+            - name: config-volume
+              mountPath: /workspace/config
+
+      volumes:
+        - name: config-volume
+          configMap:
+            name: gateway-config

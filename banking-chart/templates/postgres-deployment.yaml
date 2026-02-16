@@ -1,0 +1,62 @@
+# k8s/postgres-deployment.yaml
+
+# 1. Starter Script (SQL that creates the databases)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+data:
+  create-dbs.sql: |
+    CREATE DATABASE account_db;
+    CREATE DATABASE transfer_db;
+    CREATE DATABASE keycloak;
+
+---
+# 2. Service Description (Network Port)
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
+  type: ClusterIP
+
+---
+# 3. Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.global.postgres.auth.username }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.global.postgres.auth.password }}
+            - name: POSTGRES_DB
+              value: "banking_core"
+          volumeMounts:
+            - name: init-scripts-volume
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: init-scripts-volume
+          configMap:
+            name: postgres-init-scripts

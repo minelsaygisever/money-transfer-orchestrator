@@ -41,7 +41,15 @@ public class AccountDataSeeder implements CommandLineRunner {
                             .dailyLimit(new BigDecimal("10000.00"))
                             .build();
 
-                    return accountRepository.saveAll(Arrays.asList(account1, account2));
+                    Account account3 = Account.builder()
+                            .customerId("33333")
+                            .balance(new BigDecimal("5000.00"))
+                            .currency("TRY")
+                            .status(AccountStatus.ACTIVE)
+                            .dailyLimit(new BigDecimal("10000.00"))
+                            .build();
+
+                    return accountRepository.saveAll(Arrays.asList(account1, account2, account3));
                 })
                 .subscribe(
                         account -> log.info("Account created: {}", account.getId()),
